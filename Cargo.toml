@@ -1,0 +1,27 @@
+[package]
+name = "flowly"
+version = "0.1.0"
+edition = "2024"
+authors = ["Andrey Tkachenko <andrey@aidev.ru>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/andreytkachenko/flowly"
+homepage = "https://github.com/andreytkachenko/flowly"
+description = """
+Flowly is a library of modular and reusable components for building robust
+pipelines processing audio, video and other.
+"""
+categories = ["asynchronous", "network-programming"]
+keywords = ["pipeline", "async",  "machine-learning", "audio", "video"]
+
+[dependencies]
+async-stream = "0.3.6"
+bitflags = "2.9.1"
+bytes = "1.10.1"
+futures = "0.3.31"
+stream-cancel = "0.8.2"
+thiserror = "2.0.12"
+tokio = { version = "1.45.0", features = ["sync", "rt-multi-thread"] }
+
+[dev-dependencies]
+tokio = { version = "1.45.0", features = ["full"] }
