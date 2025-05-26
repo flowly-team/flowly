@@ -1,8 +1,7 @@
-use bytes::Bytes;
-
 use crate::codec::Codec;
 
 use bitflags::bitflags;
+use bytes::Bytes;
 
 bitflags! {
     #[repr(transparent)]
@@ -26,7 +25,7 @@ pub trait Frame {
     fn codec(&self) -> Codec;
     fn flags(&self) -> FrameFlags;
     fn params(&self) -> impl Iterator<Item = Bytes>;
-    fn blocks(&self) -> impl Iterator<Item = Bytes>;
+    fn units(&self) -> impl Iterator<Item = Bytes>;
 
     fn is_key_frame(&self) -> bool {
         self.flags().contains(FrameFlags::KEY_FRAME)

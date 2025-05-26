@@ -14,7 +14,24 @@ pipelines processing audio, video and other.
 categories = ["asynchronous", "network-programming"]
 keywords = ["pipeline", "async",  "machine-learning", "audio", "video"]
 
-[dependencies]
+[workspace]
+members = [
+  "crates/flowy-service",
+  "crates/flowy-core",
+  "crates/flowy-codec",
+  "crates/flowy-mux",
+  "crates/flowy-slicer",
+  "crates/flowy-kafka"
+]
+
+[workspace.dependencies]
+flowy-core = { path = "./crates/flowy-core" }
+flowy-service = { path = "./crates/flowy-service" }
+flowy-mux = { path = "./crates/flowy-mux" }
+flowy-codec = { path = "./crates/flowy-codec" }
+flowy-kafka = { path = "./crates/flowy-kafka" }
+flowy-slicer = { path = "./crates/flowy-slicer" }
+
 async-stream = "0.3.6"
 bitflags = "2.9.1"
 bytes = "1.10.1"
@@ -22,6 +39,14 @@ futures = "0.3.31"
 stream-cancel = "0.8.2"
 thiserror = "2.0.12"
 tokio = { version = "1.45.0", features = ["sync", "rt-multi-thread"] }
+
+[dependencies]
+flowy-core = { workspace = true }
+flowy-service = { workspace = true }
+flowy-mux = { workspace = true }
+flowy-codec = { workspace = true }
+flowy-kafka = { workspace = true }
+flowy-slicer = { workspace = true }
 
 [dev-dependencies]
 tokio = { version = "1.45.0", features = ["full"] }

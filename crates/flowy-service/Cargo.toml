@@ -1,0 +1,10 @@
+[package]
+name = "flowy-service"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+async-stream = { workspace = true }
+futures = { workspace = true }
+stream-cancel = { workspace = true }
+tokio = { workspace = true }

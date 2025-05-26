@@ -1,6 +1,8 @@
+use bytes::Bytes;
 use futures::{StreamExt, prelude::Stream};
 
-use crate::{Frame, Service};
+use flowy_core::{Codec, Frame, FrameFlags};
+use flowy_service::Service;
 
 pub struct WithFragment<F> {
     pub index: u64,
@@ -25,20 +27,20 @@ impl<F: Frame> Frame for WithFragment<F> {
         self.frame.timestamp()
     }
 
-    fn codec(&self) -> crate::Codec {
+    fn codec(&self) -> Codec {
         self.frame.codec()
     }
 
-    fn flags(&self) -> crate::FrameFlags {
+    fn flags(&self) -> FrameFlags {
         self.frame.flags()
     }
 
-    fn params(&self) -> impl Iterator<Item = bytes::Bytes> {
+    fn params(&self) -> impl Iterator<Item = Bytes> {
         self.frame.params()
     }
 
-    fn blocks(&self) -> impl Iterator<Item = bytes::Bytes> {
-        self.frame.blocks()
+    fn units(&self) -> impl Iterator<Item = Bytes> {
+        self.frame.units()
     }
 }
 
