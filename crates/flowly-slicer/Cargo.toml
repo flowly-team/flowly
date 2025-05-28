@@ -1,10 +1,10 @@
 [package]
-name = "flowy-slicer"
+name = "flowly-slicer"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-flowy-core ={ workspace = true }
-flowy-service ={ workspace = true }
+flowly-core ={ workspace = true }
+flowly-service ={ workspace = true }
 futures ={ workspace = true }
 bytes = { workspace = true }

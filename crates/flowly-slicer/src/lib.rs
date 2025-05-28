@@ -1,8 +1,8 @@
 use bytes::Bytes;
-use futures::{StreamExt, prelude::Stream};
+use futures::{prelude::Stream, StreamExt};
 
-use flowy_core::{Codec, Frame, FrameFlags};
-use flowy_service::Service;
+use flowly_core::{Codec, Frame, FrameFlags};
+use flowly_service::Service;
 
 pub struct WithFragment<F> {
     pub index: u64,

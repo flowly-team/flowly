@@ -1,11 +1,11 @@
 [package]
-name = "flowy-mux"
+name = "flowly-mux"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-flowy-core = { workspace = true }
-flowy-service = { workspace = true }
+flowly-core = { workspace = true }
+flowly-service = { workspace = true }
 futures = { workspace = true }
 
 mpeg2ts-reader = "0.18.2"

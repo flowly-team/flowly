@@ -16,21 +16,23 @@ keywords = ["pipeline", "async",  "machine-learning", "audio", "video"]
 
 [workspace]
 members = [
-  "crates/flowy-service",
-  "crates/flowy-core",
-  "crates/flowy-codec",
-  "crates/flowy-mux",
-  "crates/flowy-slicer",
-  "crates/flowy-kafka"
+  "crates/flowly-service",
+  "crates/flowly-core",
+  "crates/flowly-codec",
+  "crates/flowly-mux",
+  "crates/flowly-slicer",
+  "crates/flowly-kafka",
+  "crates/flowly-io"
 ]
 
 [workspace.dependencies]
-flowy-core = { path = "./crates/flowy-core" }
-flowy-service = { path = "./crates/flowy-service" }
-flowy-mux = { path = "./crates/flowy-mux" }
-flowy-codec = { path = "./crates/flowy-codec" }
-flowy-kafka = { path = "./crates/flowy-kafka" }
-flowy-slicer = { path = "./crates/flowy-slicer" }
+flowly-core = { path = "./crates/flowly-core" }
+flowly-service = { path = "./crates/flowly-service" }
+flowly-io = { path = "./crates/flowly-io" }
+flowly-mux = { path = "./crates/flowly-mux" }
+flowly-codec = { path = "./crates/flowly-codec" }
+flowly-kafka = { path = "./crates/flowly-kafka" }
+flowly-slicer = { path = "./crates/flowly-slicer" }
 
 async-stream = "0.3.6"
 bitflags = "2.9.1"
@@ -41,12 +43,15 @@ thiserror = "2.0.12"
 tokio = { version = "1.45.0", features = ["sync", "rt-multi-thread"] }
 
 [dependencies]
-flowy-core = { workspace = true }
-flowy-service = { workspace = true }
-flowy-mux = { workspace = true }
-flowy-codec = { workspace = true }
-flowy-kafka = { workspace = true }
-flowy-slicer = { workspace = true }
+flowly-core.workspace = true
+flowly-service.workspace = true
+flowly-mux = { workspace = true }
+flowly-codec = { workspace = true }
+flowly-kafka = { workspace = true }
+flowly-slicer = { workspace = true }
+flowly-io = { workspace = true }
+futures.workspace = true
+bytes.workspace = true
 
 [dev-dependencies]
 tokio = { version = "1.45.0", features = ["full"] }

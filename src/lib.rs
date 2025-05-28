@@ -1,5 +1,5 @@
-pub use flowy_codec;
-pub use flowy_core::*;
-pub use flowy_kafka;
-pub use flowy_mux;
-pub use flowy_service::*;
+pub use flowly_codec;
+pub use flowly_core::*;
+pub use flowly_kafka;
+pub use flowly_mux;
+pub use flowly_service::*;

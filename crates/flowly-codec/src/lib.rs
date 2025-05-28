@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use futures::Stream;
 
-use flowy_core::{Codec, Frame};
-use flowy_service::Service;
+use flowly_core::{Codec, Frame};
+use flowly_service::Service;
 
 pub struct DecodedFrame {
     data: Arc<Vec<u8>>,

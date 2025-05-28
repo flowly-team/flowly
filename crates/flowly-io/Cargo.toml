@@ -1,0 +1,17 @@
+[package]
+name = "flowly-io"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+async-stream.workspace = true
+bytes.workspace = true
+flowly-core.workspace = true
+flowly-service.workspace = true
+futures.workspace = true
+glob = "0.3.2"
+thiserror.workspace = true
+tokio = { workspace = true, features = ["fs", "io-util"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
