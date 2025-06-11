@@ -1,11 +1,4 @@
-#[derive(Debug)]
-pub enum Void {}
-impl std::fmt::Display for Void {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        unreachable!()
-    }
-}
-impl std::error::Error for Void {}
+use flowly_core::Void;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<E: std::error::Error + Send + Sync + 'static = Void> {

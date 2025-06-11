@@ -1,12 +1,24 @@
 [package]
 name = "flowly"
-version = "0.1.0"
+version = { workspace = true }
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+readme = { workspace = true }
+repository = { workspace = true }
+homepage = { workspace = true }
+description = { workspace = true }
+categories = { workspace = true }
+keywords = { workspace = true }
+
+[workspace.package]
+version = "0.2.1"
 edition = "2024"
 authors = ["Andrey Tkachenko <andrey@aidev.ru>"]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/andreytkachenko/flowly"
-homepage = "https://github.com/andreytkachenko/flowly"
+repository = "https://github.com/flowly-team/flowly"
+homepage = "https://github.com/flowly-team/flowly"
 description = """
 Flowly is a library of modular and reusable components for building robust
 pipelines processing audio, video and other.
@@ -18,21 +30,15 @@ keywords = ["pipeline", "async",  "machine-learning", "audio", "video"]
 members = [
   "crates/flowly-service",
   "crates/flowly-core",
-  "crates/flowly-codec",
-  "crates/flowly-mux",
-  "crates/flowly-slicer",
-  "crates/flowly-kafka",
-  "crates/flowly-io"
+  "crates/flowly-io",
+  "crates/flowly-spsc"
 ]
 
 [workspace.dependencies]
-flowly-core = { path = "./crates/flowly-core" }
-flowly-service = { path = "./crates/flowly-service" }
-flowly-io = { path = "./crates/flowly-io" }
-flowly-mux = { path = "./crates/flowly-mux" }
-flowly-codec = { path = "./crates/flowly-codec" }
-flowly-kafka = { path = "./crates/flowly-kafka" }
-flowly-slicer = { path = "./crates/flowly-slicer" }
+flowly-core = { version = "0.2.0", path = "./crates/flowly-core" }
+flowly-service = { version = "0.2.0", path = "./crates/flowly-service" }
+flowly-io = { version = "0.2.0", path = "./crates/flowly-io" }
+flowly-spsc = { version = "0.2.0", path = "./crates/flowly-spsc" }
 
 async-stream = "0.3.6"
 bitflags = "2.9.1"
@@ -45,13 +51,11 @@ tokio = { version = "1.45.0", features = ["sync", "rt-multi-thread"] }
 [dependencies]
 flowly-core.workspace = true
 flowly-service.workspace = true
-flowly-mux = { workspace = true }
-flowly-codec = { workspace = true }
-flowly-kafka = { workspace = true }
-flowly-slicer = { workspace = true }
 flowly-io = { workspace = true }
-futures.workspace = true
-bytes.workspace = true
+flowly-spsc = { workspace = true }
+futures = { workspace = true }
+bytes = { workspace = true }
 
 [dev-dependencies]
+async-stream.workspace = true
 tokio = { version = "1.45.0", features = ["full"] }

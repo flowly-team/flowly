@@ -1,11 +1,11 @@
 use flowly_io::file::DirReader;
-use flowly_service::{Service, ServiceExt, pipeline};
+use flowly_service::{Service, ServiceExt, flow};
 use futures::TryStreamExt;
 
 #[tokio::main]
 async fn main() {
-    let ppl = pipeline() // -
-        .pipe(DirReader::new("*.mp4".to_string(), Default::default()));
+    let ppl = flow() // -
+        .flow(DirReader::new("*.mp4".to_string(), Default::default()));
 
     let a: [Result<&'static str, std::io::Error>; 3] = [
         Ok("/home/andrey/demo/av1/"),

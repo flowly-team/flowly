@@ -1,7 +1,6 @@
-use crate::codec::Codec;
+use crate::codec::Fourcc;
 
 use bitflags::bitflags;
-use bytes::Bytes;
 
 bitflags! {
     #[repr(transparent)]
@@ -11,21 +10,21 @@ bitflags! {
         const LAST_FRAME       = 0b1 << 1;
         const LIVE_STREAM      = 0b1 << 2;
         const TIME_SYNCRONIZED = 0b1 << 3;
-        const HAS_DTS          = 0b1 << 4;
-        const HAS_PARAMS       = 0b1 << 5;
-        const HAS_TIMESTAMP    = 0b1 << 6;
+        const HAS_PARAMS       = 0b1 << 4;
+        const HAS_TIMESTAMP    = 0b1 << 5;
     }
 }
 
 pub trait Frame {
     fn seq(&self) -> u64;
-    fn pts(&self) -> u64;
-    fn timestamp(&self) -> Option<u64>;
-    fn dts(&self) -> Option<u64>;
-    fn codec(&self) -> Codec;
+    fn pts(&self) -> i64;
+    fn dts(&self) -> u64;
+    fn codec(&self) -> Fourcc;
     fn flags(&self) -> FrameFlags;
-    fn params(&self) -> impl Iterator<Item = Bytes>;
-    fn units(&self) -> impl Iterator<Item = Bytes>;
+
+    fn timestamp(&self) -> Option<u64>;
+    fn params(&self) -> impl Iterator<Item = &[u8]>;
+    fn units(&self) -> impl Iterator<Item = &[u8]>;
 
     fn is_key_frame(&self) -> bool {
         self.flags().contains(FrameFlags::KEY_FRAME)
@@ -39,11 +38,11 @@ pub trait Frame {
         self.flags().contains(FrameFlags::HAS_PARAMS)
     }
 
-    fn has_dts(&self) -> bool {
-        self.flags().contains(FrameFlags::HAS_DTS)
-    }
-
     fn has_timestamp(&self) -> bool {
         self.flags().contains(FrameFlags::HAS_TIMESTAMP)
+    }
+
+    fn units_annexb(&self) -> impl Iterator<Item = &[u8]> {
+        self.units().map(|x| [&[0, 0, 0, 1][..], &x[..]]).flatten()
     }
 }

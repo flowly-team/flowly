@@ -18,12 +18,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
 
 [[package]]
-name = "anyhow"
-version = "1.0.98"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
-
-[[package]]
 name = "async-stream"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -44,6 +38,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "atomic-waker"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "autocfg"
@@ -85,48 +85,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "encoding_rs"
-version = "0.8.35"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3"
-dependencies = [
- "cfg-if",
-]
-
-[[package]]
-name = "fixedbitset"
-version = "0.5.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d674e81391d1e1ab681a28d99df07927c6d4aa5b027d7da16ba32d1d21ecd99"
-
-[[package]]
 name = "flowly"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
+ "async-stream",
  "bytes",
- "flowly-codec",
  "flowly-core",
  "flowly-io",
- "flowly-kafka",
- "flowly-mux",
  "flowly-service",
- "flowly-slicer",
+ "flowly-spsc",
  "futures",
  "tokio",
 ]
 
 [[package]]
-name = "flowly-codec"
-version = "0.1.0"
-dependencies = [
- "flowly-core",
- "flowly-service",
- "futures",
-]
-
-[[package]]
 name = "flowly-core"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "bitflags",
  "bytes",
@@ -135,7 +109,7 @@ dependencies = [
 
 [[package]]
 name = "flowly-io"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "async-stream",
  "bytes",
@@ -148,27 +122,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "flowly-kafka"
-version = "0.1.0"
-
-[[package]]
-name = "flowly-mux"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-stream",
- "bytes",
- "flowly-core",
- "flowly-service",
- "futures",
- "mpeg2ts-reader",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "flowly-service"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "async-stream",
  "futures",
@@ -177,20 +132,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "flowly-slicer"
-version = "0.1.0"
+name = "flowly-spsc"
+version = "0.2.1"
 dependencies = [
- "bytes",
- "flowly-core",
- "flowly-service",
+ "atomic-waker",
  "futures",
+ "parking_lot",
+ "tokio",
 ]
-
-[[package]]
-name = "four-cc"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "431a4c31778fde52b4400de34975f219eeca55cc829a9de157cd743a5b230ecb"
 
 [[package]]
 name = "futures"
@@ -301,19 +250,13 @@ checksum = "d750af042f7ef4f724306de029d18836c26c1765a54a6a3f094cbd23a7267ffa"
 
 [[package]]
 name = "lock_api"
-version = "0.4.12"
+version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07af8b9cdd281b7915f413fa73f29ebd5d55d0d3f0155584dade1ff18cea1b17"
+checksum = "96936507f153605bddfcda068dd804796c84324ed2510809e5b2a624c81da765"
 dependencies = [
  "autocfg",
  "scopeguard",
 ]
-
-[[package]]
-name = "log"
-version = "0.4.27"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
 
 [[package]]
 name = "memchr"
@@ -342,18 +285,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mpeg2ts-reader"
-version = "0.18.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60d554f8b96211e27ca4cafe6d07dcdf88fc7ff2a23c11e3b075567732cfd6a7"
-dependencies = [
- "encoding_rs",
- "fixedbitset",
- "log",
- "smptera-format-identifiers-rust",
-]
-
-[[package]]
 name = "object"
 version = "0.36.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -364,9 +295,9 @@ dependencies = [
 
 [[package]]
 name = "parking_lot"
-version = "0.12.3"
+version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1bf18183cf54e8d6059647fc3063646a1801cf30896933ec2311622cc4b9a27"
+checksum = "70d58bf43669b5795d1576d0641cfb6fbb2057bf629506267a92807158584a13"
 dependencies = [
  "lock_api",
  "parking_lot_core",
@@ -374,9 +305,9 @@ dependencies = [
 
 [[package]]
 name = "parking_lot_core"
-version = "0.9.10"
+version = "0.9.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e401f977ab385c9e4e3ab30627d6f26d00e2c73eef317493c4ec6d468726cf8"
+checksum = "bc838d2a56b5b1a6c25f55575dfc605fabb63bb2365f6c2353ef9159aa69e4a5"
 dependencies = [
  "cfg-if",
  "libc",
@@ -479,15 +410,6 @@ name = "smallvec"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8917285742e9f3e1683f0a9c4e6b57960b7314d0b08d30d1ecd426713ee2eee9"
-
-[[package]]
-name = "smptera-format-identifiers-rust"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b79962555faf3a7892357f69d0306269cb1b265007957252c843953804884750"
-dependencies = [
- "four-cc",
-]
 
 [[package]]
 name = "socket2"

@@ -22,7 +22,7 @@ pub trait Service<In> {
 
 pub trait ServiceExt<I>: Service<I> {
     #[inline]
-    fn pipe<U>(self, service: U) -> impl Service<I, Out = U::Out>
+    fn flow<U>(self, service: U) -> impl Service<I, Out = U::Out>
     where
         Self: Sized,
         U: Service<Self::Out>,
@@ -34,12 +34,12 @@ pub trait ServiceExt<I>: Service<I> {
     }
 
     #[inline]
-    fn maybe_pipe<U>(self, service: Option<U>) -> impl Service<I, Out = Self::Out>
+    fn maybe_flow<U>(self, service: Option<U>) -> impl Service<I, Out = Self::Out>
     where
         Self: Sized,
         U: Service<Self::Out, Out = Self::Out>,
     {
-        self.pipe(maybe::Maybe { service })
+        self.flow(maybe::Maybe { service })
     }
 
     #[inline]
@@ -59,7 +59,7 @@ pub trait ServiceExt<I>: Service<I> {
         Self: Sized,
         F: Send + FnMut(Self::Out) -> U,
     {
-        self.pipe(map::MapEachFn {
+        self.flow(map::MapEachFn {
             map,
             m: PhantomData,
         })
@@ -113,7 +113,7 @@ pub trait TryServiceExt<I, E>: TryService<I, E> {
     where
         Self: Sized,
     {
-        self.pipe(map::MapOk {
+        self.flow(map::MapOk {
             map,
             m: PhantomData,
         })
@@ -128,7 +128,7 @@ pub trait TryServiceExt<I, E>: TryService<I, E> {
         Self: Sized,
         F: TryFuture<Error = Self::Error> + Send,
     {
-        self.pipe(and_then::AndThenFn { f })
+        self.flow(and_then::AndThenFn { f })
     }
 
     #[inline]
@@ -140,7 +140,7 @@ pub trait TryServiceExt<I, E>: TryService<I, E> {
         F: Future<Output = Result<(), Self::Error>> + Send,
         C: Send + FnMut() -> F,
     {
-        self.pipe(finally::Finally { f })
+        self.flow(finally::Finally { f })
     }
 
     #[inline]
@@ -152,7 +152,7 @@ pub trait TryServiceExt<I, E>: TryService<I, E> {
         F: Future<Output = Result<(), Self::Error>> + Send,
         C: Send + FnMut(Self::Error) -> F,
     {
-        self.pipe(finally::Except { f })
+        self.flow(finally::Except { f })
     }
 
     #[inline]
@@ -162,7 +162,7 @@ pub trait TryServiceExt<I, E>: TryService<I, E> {
         Self::Ok: Send,
         Self::Error: Send,
     {
-        self.pipe(stub::Stub)
+        self.flow(stub::Stub)
     }
 
     fn try_flatten_map<C, O, F, S>(
@@ -180,10 +180,10 @@ pub trait TryServiceExt<I, E>: TryService<I, E> {
         C: FnMut(Self::Ok) -> F + Send,
         S: Stream<Item = Result<O, Self::Error>> + Send,
     {
-        self.pipe(flatten::TryFlattenMap { f })
+        self.flow(flatten::TryFlattenMap { f })
     }
 }
 
-pub fn pipeline() -> pass::Pass {
+pub fn flow() -> pass::Pass {
     pass::Pass
 }

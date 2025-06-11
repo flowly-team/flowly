@@ -1,5 +1,5 @@
 [package]
-name = "flowly-core"
+name = "flowly-spsc"
 version = { workspace = true }
 edition = { workspace = true }
 authors = { workspace = true }
@@ -12,6 +12,10 @@ categories = { workspace = true }
 keywords = { workspace = true }
 
 [dependencies]
-bitflags = { workspace = true }
-bytes = { workspace = true }
-thiserror = { workspace = true }
+atomic-waker = "1.1.2"
+futures.workspace = true
+parking_lot = "0.12.4"
+
+[dev-dependencies]
+futures.workspace = true
+tokio = { workspace = true, features = ["full"] }

@@ -1,7 +1,15 @@
 [package]
 name = "flowly-io"
-version = "0.1.0"
-edition = "2024"
+version = { workspace = true }
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+readme = { workspace = true }
+repository = { workspace = true }
+homepage = { workspace = true }
+description = { workspace = true }
+categories = { workspace = true }
+keywords = { workspace = true }
 
 [dependencies]
 async-stream.workspace = true
