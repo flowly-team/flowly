@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[repr(C)]
 pub struct Fourcc([u8; 4]);
 
@@ -381,6 +381,17 @@ impl std::fmt::Display for Fourcc {
 
         f.write_fmt(format_args!(
             "{}{}{}{}",
+            c[0] as char, c[1] as char, c[2] as char, c[3] as char
+        ))
+    }
+}
+
+impl std::fmt::Debug for Fourcc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let c: [u8; 4] = (*self).into();
+
+        f.write_fmt(format_args!(
+            "Fourcc(['{}', '{}', '{}', '{}'])",
             c[0] as char, c[1] as char, c[2] as char, c[3] as char
         ))
     }

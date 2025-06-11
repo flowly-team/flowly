@@ -1,8 +1,8 @@
-mod codec;
+mod fourcc;
 mod frame;
 mod memory;
 
-pub use codec::Fourcc;
+pub use fourcc::Fourcc;
 pub use frame::{Frame, FrameFlags};
 pub use memory::{CpuAllocator, CpuMemBlock, Error, MemBlock, MemoryAllocator};
 
