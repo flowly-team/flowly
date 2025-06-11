@@ -1,11 +1,11 @@
-use crate::codec::Fourcc;
+use crate::fourcc::Fourcc;
 
 use bitflags::bitflags;
 
 bitflags! {
     #[repr(transparent)]
     #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-    pub struct FrameFlags: u64 {
+    pub struct FrameFlags: u32 {
         const KEYFRAME         = 0b1 << 0;
         const LAST             = 0b1 << 1;
         const LIVE             = 0b1 << 2;
