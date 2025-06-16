@@ -38,6 +38,12 @@ impl<E, S> DerefMut for Spread<E, S> {
     }
 }
 
+impl<U: ?Sized, E: AsRef<U>, S> AsRef<U> for Spread<E, S> {
+    fn as_ref(&self) -> &U {
+        self.inner.as_ref()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct DirReader {
     pattern: String,
@@ -95,6 +101,12 @@ pub struct FileReader {
     chunk_size: usize,
 }
 
+impl FileReader {
+    pub fn new(chunk_size: usize) -> Self {
+        Self { chunk_size }
+    }
+}
+
 impl Default for FileReader {
     fn default() -> Self {
         Self { chunk_size: 8192 }
@@ -117,6 +129,7 @@ impl<P: AsRef<Path> + Send + Sync, E: std::error::Error + Send + Sync + 'static>
             while let Some(res) = input.next().await  {
                 match res {
                     Ok(path) => {
+                        println!("path {}", path.as_ref().display());
                         match tokio::fs::File::open(&path).await {
                             Ok(mut file) => {
                                 let shared = Arc::new(path);
