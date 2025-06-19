@@ -1,13 +1,13 @@
 use bytes::Bytes;
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
+pub enum MemError {
     #[error("Mem error")]
     CpuAllocationError,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum MemoryType {
+pub enum MemType {
     Cpu,
     Gpu(u32),
 }
@@ -16,19 +16,19 @@ pub trait MemBlock {
     fn to_cpu_bytes(&self) -> Bytes;
 }
 
-pub trait MemoryAllocator {
+pub trait MemAlloc {
     type Data: MemBlock;
     type Error: std::error::Error + Send + Sync + 'static;
 
-    fn memory_type(&self) -> MemoryType;
+    fn memory_type(&self) -> MemType;
     fn alloc_frame(&self, data: &[u8]) -> Result<Self::Data, Self::Error>;
 }
 
-impl<A: MemoryAllocator> MemoryAllocator for std::sync::Arc<A> {
+impl<A: MemAlloc> MemAlloc for std::sync::Arc<A> {
     type Data = A::Data;
     type Error = A::Error;
 
-    fn memory_type(&self) -> MemoryType {
+    fn memory_type(&self) -> MemType {
         (**self).memory_type()
     }
 
@@ -46,12 +46,12 @@ impl MemBlock for CpuMemBlock {
 
 pub struct CpuAllocator;
 
-impl MemoryAllocator for CpuAllocator {
+impl MemAlloc for CpuAllocator {
     type Data = CpuMemBlock;
-    type Error = Error;
+    type Error = MemError;
 
-    fn memory_type(&self) -> MemoryType {
-        MemoryType::Cpu
+    fn memory_type(&self) -> MemType {
+        MemType::Cpu
     }
 
     fn alloc_frame(&self, data: &[u8]) -> Result<Self::Data, Self::Error> {

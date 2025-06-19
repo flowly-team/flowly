@@ -13,6 +13,7 @@ keywords = { workspace = true }
 
 [dependencies]
 flowly-spsc = { workspace = true }
+flowly-core = { workspace = true }
 async-stream = { workspace = true }
 futures = { workspace = true }
 stream-cancel = { workspace = true }

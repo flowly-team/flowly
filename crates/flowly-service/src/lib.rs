@@ -12,6 +12,7 @@ mod stub;
 
 use std::marker::PhantomData;
 
+use flowly_core::Either;
 use futures::{Stream, StreamExt, TryFuture};
 
 pub trait Service<In> {
@@ -31,18 +32,6 @@ pub trait ServiceExt<I>: Service<I> {
             service1: self,
             service2: service,
         }
-    }
-
-    #[inline]
-    fn maybe_flow<C, S>(self, cond: C, service: S) -> impl Service<I, Out = Self::Out>
-    where
-        I: Send,
-        C: Send + Sync + Fn(&Self::Out) -> bool,
-        Self::Out: std::fmt::Debug + Send,
-        Self: Sized,
-        S: Service<Self::Out, Out = Self::Out>,
-    {
-        self.flow(maybe::Maybe { cond, service })
     }
 
     #[inline]
@@ -108,6 +97,25 @@ where
 }
 
 pub trait TryServiceExt<I, E>: TryService<I, E> {
+    #[inline]
+    fn maybe_flow<OE, C, S>(
+        self,
+        cond: C,
+        service: S,
+    ) -> impl Service<Result<I, E>, Out = Result<Self::Ok, Either<Self::Error, OE>>>
+    where
+        E: Send,
+        OE: Send,
+        Self::Ok: Send,
+        Self::Error: Send,
+        Self: Sized,
+        I: Send + std::fmt::Debug,
+        C: Send + Sync + Fn(&Result<Self::Ok, Self::Error>) -> bool,
+        S: Service<Result<Self::Ok, Self::Error>, Out = Result<Self::Ok, OE>>,
+    {
+        self.flow(maybe::Maybe { cond, service })
+    }
+
     #[inline]
     fn map_ok<C: FnMut(Self::Ok) -> U + Send, U>(
         self,
@@ -187,6 +195,8 @@ pub trait TryServiceExt<I, E>: TryService<I, E> {
     }
 }
 
+impl<I, E, T: TryService<I, E>> TryServiceExt<I, E> for T {}
+
 impl<I, S: Service<I, Out = I>> Service<I> for Option<S> {
     type Out = I;
 
@@ -199,6 +209,6 @@ impl<I, S: Service<I, Out = I>> Service<I> for Option<S> {
     }
 }
 
-pub fn flow() -> pass::Pass {
-    pass::Pass
+pub fn flow<I>() -> pass::Pass<I> {
+    pass::Pass(PhantomData)
 }
