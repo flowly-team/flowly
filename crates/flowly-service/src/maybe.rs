@@ -62,13 +62,13 @@ where
     E: Send,
     OE: Send,
     I: Send,
-    C: Send + Sync + Fn(&Result<I, E>) -> bool,
+    C: Send + Sync + FnMut(&Result<I, E>) -> bool,
     S: Service<Result<I, E>, Out = Result<I, OE>>,
 {
     type Out = Result<I, Either<E, OE>>;
 
     fn handle(
-        self,
+        mut self,
         input: impl Stream<Item = Result<I, E>> + Send,
     ) -> impl Stream<Item = Self::Out> + Send {
         let (mut tx, rx) = flowly_spsc::channel::<Result<I, E>>(1);

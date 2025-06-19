@@ -86,7 +86,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "flowly"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "async-stream",
  "bytes",
@@ -100,7 +100,7 @@ dependencies = [
 
 [[package]]
 name = "flowly-core"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "bitflags",
  "bytes",
@@ -110,7 +110,7 @@ dependencies = [
 
 [[package]]
 name = "flowly-io"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "async-stream",
  "bytes",
@@ -124,7 +124,7 @@ dependencies = [
 
 [[package]]
 name = "flowly-service"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "async-stream",
  "flowly-core",
@@ -138,7 +138,7 @@ dependencies = [
 
 [[package]]
 name = "flowly-spsc"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "atomic-waker",
  "futures",

@@ -110,7 +110,7 @@ pub trait TryServiceExt<I, E>: TryService<I, E> {
         Self::Error: Send,
         Self: Sized,
         I: Send + std::fmt::Debug,
-        C: Send + Sync + Fn(&Result<Self::Ok, Self::Error>) -> bool,
+        C: Send + Sync + FnMut(&Result<Self::Ok, Self::Error>) -> bool,
         S: Service<Result<Self::Ok, Self::Error>, Out = Result<Self::Ok, OE>>,
     {
         self.flow(maybe::Maybe { cond, service })
