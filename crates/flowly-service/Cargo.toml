@@ -12,7 +12,14 @@ categories = { workspace = true }
 keywords = { workspace = true }
 
 [dependencies]
+flowly-spsc = { workspace = true }
 async-stream = { workspace = true }
 futures = { workspace = true }
 stream-cancel = { workspace = true }
 tokio = { workspace = true }
+log = { workspace = true }
+pin-project-lite = "0.2.16"
+
+[dev-dependencies]
+tokio = { version = "1.45.0", features = ["full"] }
+

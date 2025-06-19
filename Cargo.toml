@@ -12,7 +12,7 @@ categories = { workspace = true }
 keywords = { workspace = true }
 
 [workspace.package]
-version = "0.2.4"
+version = "0.2.5"
 edition = "2024"
 authors = ["Andrey Tkachenko <andrey@aidev.ru>"]
 license = "MIT"
@@ -45,7 +45,8 @@ bitflags = "2.9.1"
 bytes = "1.10.1"
 futures = "0.3.31"
 stream-cancel = "0.8.2"
-thiserror = "2.0.12"
+thiserror = "2.0"
+log = "0.4"
 tokio = { version = "1.45.0", features = ["sync", "rt-multi-thread"] }
 
 [dependencies]

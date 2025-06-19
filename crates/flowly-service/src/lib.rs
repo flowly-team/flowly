@@ -12,7 +12,7 @@ mod stub;
 
 use std::marker::PhantomData;
 
-use futures::{Stream, TryFuture};
+use futures::{Stream, StreamExt, TryFuture};
 
 pub trait Service<In> {
     type Out;
@@ -34,12 +34,15 @@ pub trait ServiceExt<I>: Service<I> {
     }
 
     #[inline]
-    fn maybe_flow<U>(self, service: Option<U>) -> impl Service<I, Out = Self::Out>
+    fn maybe_flow<C, S>(self, cond: C, service: S) -> impl Service<I, Out = Self::Out>
     where
+        I: Send,
+        C: Send + Sync + Fn(&Self::Out) -> bool,
+        Self::Out: std::fmt::Debug + Send,
         Self: Sized,
-        U: Service<Self::Out, Out = Self::Out>,
+        S: Service<Self::Out, Out = Self::Out>,
     {
-        self.flow(maybe::Maybe { service })
+        self.flow(maybe::Maybe { cond, service })
     }
 
     #[inline]
@@ -181,6 +184,18 @@ pub trait TryServiceExt<I, E>: TryService<I, E> {
         S: Stream<Item = Result<O, Self::Error>> + Send,
     {
         self.flow(flatten::TryFlattenMap { f })
+    }
+}
+
+impl<I, S: Service<I, Out = I>> Service<I> for Option<S> {
+    type Out = I;
+
+    fn handle(self, input: impl Stream<Item = I> + Send) -> impl Stream<Item = Self::Out> + Send {
+        if let Some(srv) = self {
+            srv.handle(input).left_stream()
+        } else {
+            input.right_stream()
+        }
     }
 }
 

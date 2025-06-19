@@ -39,7 +39,7 @@ struct Shared<T> {
 }
 
 unsafe impl<T: Send> Send for Shared<T> {}
-unsafe impl<T: Sync> Sync for Shared<T> {}
+unsafe impl<T: Send> Sync for Shared<T> {}
 
 impl<T> Shared<T> {
     pub(crate) fn new(capacity: usize) -> Self {
@@ -106,6 +106,11 @@ impl<T> Sender<T> {
     #[inline]
     pub fn is_closed(&self) -> bool {
         self.shared.closed.load(Ordering::Relaxed)
+    }
+
+    #[inline]
+    pub fn close(&mut self) {
+        self.shared.closed.store(true, Ordering::Relaxed)
     }
 
     pub fn start_send(&mut self, item: T) -> Result<(), TrySendError<T>> {
