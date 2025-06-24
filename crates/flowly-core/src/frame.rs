@@ -14,6 +14,7 @@ bitflags! {
         const HAS_TIMESTAMP    = 0b1 << 5;
         const MULTICHANNEL     = 0b1 << 6;
         const COMPRESSED       = 0b1 << 7;
+        const DUMMY            = 0b1 << 8;
 
         const AUDIO_STREAM     = 0b1 << 16;
         const VIDEO_STREAM     = 0b1 << 17;
