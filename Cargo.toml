@@ -12,7 +12,7 @@ categories = { workspace = true }
 keywords = { workspace = true }
 
 [workspace.package]
-version = "0.2.8"
+version = "0.3.0"
 edition = "2024"
 authors = ["Andrey Tkachenko <andrey@aidev.ru>"]
 license = "MIT"
@@ -35,10 +35,10 @@ members = [
 ]
 
 [workspace.dependencies]
-flowly-core = { version = "0.2.0", path = "./crates/flowly-core" }
-flowly-service = { version = "0.2.0", path = "./crates/flowly-service" }
-flowly-io = { version = "0.2.0", path = "./crates/flowly-io" }
-flowly-spsc = { version = "0.2.0", path = "./crates/flowly-spsc" }
+flowly-core = {  path = "./crates/flowly-core" }
+flowly-service = {  path = "./crates/flowly-service" }
+flowly-io = { path = "./crates/flowly-io" }
+flowly-spsc = {  path = "./crates/flowly-spsc" }
 
 async-stream = "0.3.6"
 bitflags = "2.9.1"

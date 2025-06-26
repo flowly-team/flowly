@@ -23,6 +23,11 @@ impl Fourcc {
     /// ACC Audio Codec
     pub const AUDIO_AAC: Fourcc = Fourcc(*b"mp4a");
 
+    /// PCM codec series
+    pub const AUDIO_PCM: Fourcc = Fourcc(*b"PCM ");
+    pub const AUDIO_PCM_ALAW: Fourcc = Fourcc(*b"ALAW");
+    pub const AUDIO_PCM_ULAW: Fourcc = Fourcc(*b"ULAW");
+
     ///
     /// Video Codecs
     ///
@@ -41,6 +46,12 @@ impl Fourcc {
 
     /// HEVC (H265) Video Codec
     pub const VIDEO_HEVC: Fourcc = Fourcc(*b"hvc1");
+
+    /// MJPEG Codec
+    pub const VIDEO_MJPEG: Fourcc = Fourcc(*b"MJPG");
+
+    /// JPEG Codec
+    pub const VIDEO_JPEG: Fourcc = Fourcc(*b"JPEG");
 
     /// Pixel formats
 

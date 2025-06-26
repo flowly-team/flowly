@@ -8,6 +8,6 @@ mod void;
 pub use either::Either;
 pub use error::Error;
 pub use fourcc::Fourcc;
-pub use frame::{Frame, FrameFlags};
+pub use frame::*;
 pub use memory::{CpuAllocator, CpuMemBlock, MemAlloc, MemBlock, MemError};
 pub use void::Void;
