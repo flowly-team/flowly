@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::fourcc::Fourcc;
+use crate::{MemBlock, Void, fourcc::Fourcc};
 
 use bitflags::bitflags;
 
@@ -26,16 +26,35 @@ bitflags! {
 }
 
 pub enum FrameSourceKind {
+    Unknown,
     File,
     Url,
 }
 
-pub trait FrameSource: Sync + Send + std::fmt::Display + Clone + PartialEq {
-    fn kind(&self) -> FrameSourceKind;
-    fn url(&self) -> &str;
+pub trait FrameSource: Sync + Send + Clone + PartialEq + 'static {
+    type Source: FrameSource;
+
+    fn source(&self) -> &Self::Source;
+
+    #[inline]
+    fn kind(&self) -> FrameSourceKind {
+        self.source().kind()
+    }
+
+    #[inline]
+    fn url(&self) -> &str {
+        self.source().url()
+    }
+
+    #[inline]
+    fn name(&self) -> &str {
+        self.source().name()
+    }
 }
 
 impl<T: FrameSource> FrameSource for Arc<T> {
+    type Source = T::Source;
+
     fn kind(&self) -> FrameSourceKind {
         (**self).kind()
     }
@@ -43,36 +62,64 @@ impl<T: FrameSource> FrameSource for Arc<T> {
     fn url(&self) -> &str {
         (**self).url()
     }
-}
 
-#[derive(Debug, PartialEq)]
-pub struct ChunkRef<'a, S: FrameSource, D: AsRef<[u8]>> {
-    pub source: &'a S,
-    pub data: &'a D,
-}
+    fn name(&self) -> &str {
+        (**self).name()
+    }
 
-impl<'a, S: FrameSource, D: AsRef<[u8]>> AsRef<[u8]> for ChunkRef<'a, S, D> {
-    fn as_ref(&self) -> &[u8] {
-        self.data.as_ref()
+    fn source(&self) -> &Self::Source {
+        (**self).source()
     }
 }
 
-impl<'a, S: FrameSource, D: AsRef<[u8]>> ChunkRef<'a, S, D> {
-    pub fn new(source: &'a S, data: &'a D) -> Self {
+impl FrameSource for () {
+    type Source = Void;
+
+    fn kind(&self) -> FrameSourceKind {
+        FrameSourceKind::Unknown
+    }
+
+    fn url(&self) -> &str {
+        ""
+    }
+
+    fn name(&self) -> &str {
+        ""
+    }
+
+    fn source(&self) -> &Self::Source {
+        unreachable!()
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ChunkRef<'a, S: FrameSource, D: MemBlock + 'a> {
+    pub source: &'a S,
+    pub data: D::Ref<'a>,
+}
+
+impl<'a, S: FrameSource, D: MemBlock> AsRef<[u8]> for ChunkRef<'a, S, D> {
+    fn as_ref(&self) -> &[u8] {
+        self.data.map_to_cpu()
+    }
+}
+
+impl<'a, S: FrameSource, D: MemBlock> ChunkRef<'a, S, D> {
+    pub fn new(source: &'a S, data: D::Ref<'a>) -> Self {
         Self { source, data }
     }
 }
 
-impl<'a, S: FrameSource, D: AsRef<[u8]> + Clone> Clone for ChunkRef<'a, S, D> {
+impl<'a, S: FrameSource, D: MemBlock + Clone> Clone for ChunkRef<'a, S, D> {
     fn clone(&self) -> Self {
         Self {
             source: self.source,
-            data: self.data,
+            data: self.data.clone(),
         }
     }
 }
 
-impl<'a, S: FrameSource, D: AsRef<[u8]>> std::ops::Deref for ChunkRef<'a, S, D> {
+impl<'a, S: FrameSource, D: MemBlock> std::ops::Deref for ChunkRef<'a, S, D> {
     type Target = S;
 
     fn deref(&self) -> &Self::Target {
@@ -81,24 +128,24 @@ impl<'a, S: FrameSource, D: AsRef<[u8]>> std::ops::Deref for ChunkRef<'a, S, D> 
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Chunk<S: FrameSource, D: AsRef<[u8]>> {
+pub struct Chunk<S: FrameSource, D: MemBlock> {
     pub source: S,
     pub data: D,
 }
 
-impl<S: FrameSource, D: AsRef<[u8]>> AsRef<[u8]> for Chunk<S, D> {
+impl<S: FrameSource, D: MemBlock> AsRef<[u8]> for Chunk<S, D> {
     fn as_ref(&self) -> &[u8] {
-        self.data.as_ref()
+        self.data.map_to_cpu()
     }
 }
 
-impl<S: FrameSource, D: AsRef<[u8]>> Chunk<S, D> {
+impl<S: FrameSource, D: MemBlock> Chunk<S, D> {
     pub fn new(source: S, data: D) -> Self {
         Self { source, data }
     }
 }
 
-impl<S: FrameSource, D: AsRef<[u8]> + Clone> Clone for Chunk<S, D> {
+impl<S: FrameSource, D: MemBlock + Clone> Clone for Chunk<S, D> {
     fn clone(&self) -> Self {
         Self {
             source: self.source.clone(),
@@ -107,7 +154,7 @@ impl<S: FrameSource, D: AsRef<[u8]> + Clone> Clone for Chunk<S, D> {
     }
 }
 
-impl<S: FrameSource, D: AsRef<[u8]>> std::ops::Deref for Chunk<S, D> {
+impl<S: FrameSource, D: MemBlock> std::ops::Deref for Chunk<S, D> {
     type Target = S;
 
     fn deref(&self) -> &Self::Target {
@@ -117,10 +164,9 @@ impl<S: FrameSource, D: AsRef<[u8]>> std::ops::Deref for Chunk<S, D> {
 /// Chunk of data in the stream
 pub trait DataFrame: Send + Clone {
     type Source: FrameSource;
-    type Chunk: Clone + Send + AsRef<[u8]>;
+    type Chunk: Send + MemBlock;
 
     fn chunks(&self) -> impl Send + Iterator<Item = ChunkRef<Self::Source, Self::Chunk>>;
-
     fn into_chunks(self) -> impl Send + Iterator<Item = Chunk<Self::Source, Self::Chunk>>;
 
     /// FrameSource - source info structure
