@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use crate::{MemBlock, Void, fourcc::Fourcc};
+use crate::{Chunked, MemBlock, Void, fourcc::Fourcc};
 
 use bitflags::bitflags;
+use bytes::Buf;
 
 bitflags! {
     #[repr(transparent)]
@@ -31,7 +32,7 @@ pub enum FrameSourceKind {
     Url,
 }
 
-pub trait FrameSource: Sync + Send + Clone + PartialEq + 'static {
+pub trait FrameSource: Sync + Send + Default + Clone + PartialEq + 'static {
     type Source: FrameSource;
 
     fn source(&self) -> &Self::Source;
@@ -92,85 +93,24 @@ impl FrameSource for () {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct ChunkRef<'a, S: FrameSource, D: MemBlock + 'a> {
-    pub source: &'a S,
-    pub data: D::Ref<'a>,
-}
-
-impl<'a, S: FrameSource, D: MemBlock> AsRef<[u8]> for ChunkRef<'a, S, D> {
-    fn as_ref(&self) -> &[u8] {
-        self.data.map_to_cpu()
-    }
-}
-
-impl<'a, S: FrameSource, D: MemBlock> ChunkRef<'a, S, D> {
-    pub fn new(source: &'a S, data: D::Ref<'a>) -> Self {
-        Self { source, data }
-    }
-}
-
-impl<'a, S: FrameSource, D: MemBlock + Clone> Clone for ChunkRef<'a, S, D> {
-    fn clone(&self) -> Self {
-        Self {
-            source: self.source,
-            data: self.data.clone(),
-        }
-    }
-}
-
-impl<'a, S: FrameSource, D: MemBlock> std::ops::Deref for ChunkRef<'a, S, D> {
-    type Target = S;
-
-    fn deref(&self) -> &Self::Target {
-        &self.source
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Chunk<S: FrameSource, D: MemBlock> {
-    pub source: S,
-    pub data: D,
-}
-
-impl<S: FrameSource, D: MemBlock> AsRef<[u8]> for Chunk<S, D> {
-    fn as_ref(&self) -> &[u8] {
-        self.data.map_to_cpu()
-    }
-}
-
-impl<S: FrameSource, D: MemBlock> Chunk<S, D> {
-    pub fn new(source: S, data: D) -> Self {
-        Self { source, data }
-    }
-}
-
-impl<S: FrameSource, D: MemBlock + Clone> Clone for Chunk<S, D> {
-    fn clone(&self) -> Self {
-        Self {
-            source: self.source.clone(),
-            data: self.data.clone(),
-        }
-    }
-}
-
-impl<S: FrameSource, D: MemBlock> std::ops::Deref for Chunk<S, D> {
-    type Target = S;
-
-    fn deref(&self) -> &Self::Target {
-        &self.source
-    }
-}
 /// Chunk of data in the stream
 pub trait DataFrame: Send + Clone {
     type Source: FrameSource;
     type Chunk: Send + MemBlock;
 
-    fn chunks(&self) -> impl Send + Iterator<Item = ChunkRef<Self::Source, Self::Chunk>>;
-    fn into_chunks(self) -> impl Send + Iterator<Item = Chunk<Self::Source, Self::Chunk>>;
-
     /// FrameSource - source info structure
     fn source(&self) -> &Self::Source;
+    fn chunks(&self) -> impl Send + Iterator<Item = <Self::Chunk as MemBlock>::Ref<'_>>;
+    fn into_chunks(self) -> impl Send + Iterator<Item = Self::Chunk>;
+
+    fn put_into(self, chunks: &mut Chunked<Self::Chunk>)
+    where
+        Self::Chunk: Buf,
+    {
+        for chunk in self.into_chunks() {
+            chunks.put(chunk);
+        }
+    }
 }
 
 /// Frame of the data (related to some timestamp, codec and with some flags)

@@ -40,6 +40,7 @@ flowly-service = {  path = "./crates/flowly-service" }
 flowly-io = { path = "./crates/flowly-io" }
 flowly-spsc = {  path = "./crates/flowly-spsc" }
 
+pin-project-lite = "0.2"
 async-stream = "0.3.6"
 bitflags = "2.9.1"
 bytes = "1.10.1"
@@ -50,13 +51,13 @@ log = "0.4"
 tokio = { version = "1.45.0", features = ["sync", "rt-multi-thread"] }
 
 [dependencies]
-flowly-core.workspace = true
-flowly-service.workspace = true
+flowly-core = { workspace = true }
+flowly-service = { workspace = true }
 flowly-io = { workspace = true }
 flowly-spsc = { workspace = true }
 futures = { workspace = true }
 bytes = { workspace = true }
 
 [dev-dependencies]
-async-stream.workspace = true
+async-stream = { workspace = true }
 tokio = { version = "1.45.0", features = ["full"] }

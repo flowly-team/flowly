@@ -7,20 +7,22 @@ impl Fourcc {
     /// Audio Codecs
     ///
 
+    /// Dolby AC-3    
     pub const AUDIO_AC3: Fourcc = Fourcc(*b"ac-3");
 
+    /// Dolby Digital Plus (E-AC-3)
     pub const AUDIO_EC3: Fourcc = Fourcc(*b"ec-3");
 
-    /// OPUS Audio Codec
+    /// Opus Audio Codec
     pub const AUDIO_OPUS: Fourcc = Fourcc(*b"Opus");
 
-    /// MP3 Audio Codec
+    /// Mp3 Audio Codec
     pub const AUDIO_MP3: Fourcc = Fourcc(*b".mp3");
 
-    /// FLAC Audio Codec
+    /// FLAC (Free Lossless Audio Codec)
     pub const AUDIO_FLAC: Fourcc = Fourcc(*b"fLaC");
 
-    /// ACC Audio Codec
+    /// ACC (Advanced Audio Coding)
     pub const AUDIO_AAC: Fourcc = Fourcc(*b"mp4a");
 
     /// PCM codec series
@@ -383,6 +385,12 @@ impl From<&[u8; 4]> for Fourcc {
 impl From<Fourcc> for [u8; 4] {
     fn from(n: Fourcc) -> Self {
         n.0
+    }
+}
+
+impl From<[u8; 4]> for Fourcc {
+    fn from(n: [u8; 4]) -> Self {
+        Self(n)
     }
 }
 

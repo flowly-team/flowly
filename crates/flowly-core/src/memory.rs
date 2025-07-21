@@ -48,7 +48,7 @@ pub trait MemBlock {
 }
 
 impl MemBlock for Bytes {
-    type Ref<'a> = &'a [u8];
+    type Ref<'a> = &'a Bytes;
 
     #[inline]
     fn borrow(&self) -> Self::Ref<'_> {
@@ -72,6 +72,28 @@ impl MemBlock for Bytes {
 }
 
 impl<'a> MemBlock for &'a [u8] {
+    type Ref<'b>
+        = &'b [u8]
+    where
+        Self: 'b;
+
+    #[inline]
+    fn borrow(&self) -> Self::Ref<'_> {
+        self
+    }
+
+    #[inline]
+    fn device(&self) -> MemDevice {
+        MemDevice::Cpu
+    }
+
+    #[inline]
+    fn map_to_cpu(&self) -> &[u8] {
+        self
+    }
+}
+
+impl<'a> MemBlock for &'a Bytes {
     type Ref<'b>
         = &'b [u8]
     where

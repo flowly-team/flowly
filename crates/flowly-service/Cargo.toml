@@ -19,7 +19,7 @@ futures = { workspace = true }
 stream-cancel = { workspace = true }
 tokio = { workspace = true }
 log = { workspace = true }
-pin-project-lite = "0.2.16"
+pin-project-lite = { workspace = true }
 
 [dev-dependencies]
 tokio = { version = "1.45.0", features = ["full"] }
