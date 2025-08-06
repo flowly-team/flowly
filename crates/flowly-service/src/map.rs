@@ -1,41 +1,107 @@
 use std::marker::PhantomData;
 
-use futures::{Stream, StreamExt, TryStreamExt};
+use flowly_core::Void;
+use futures::{FutureExt, Stream, TryStreamExt};
 
-use crate::Service;
+use crate::{Context, Service};
+
+pub fn map<U, F>(map: F) -> Map<U, F> {
+    Map {
+        map,
+        m: PhantomData,
+    }
+}
 
 #[derive(Debug, Clone)]
-pub struct MapEachFn<U, F> {
+pub struct Map<U, F> {
     pub(crate) map: F,
     pub(crate) m: PhantomData<U>,
 }
 
-impl<I, U, F> Service<I> for MapEachFn<U, F>
+impl<I, U, F> Service<I> for Map<U, F>
 where
-    F: Send + FnMut(I) -> U,
+    F: AsyncFnMut(I) -> U,
 {
-    type Out = U;
+    type Out = Result<U, Void>;
 
-    fn handle(self, input: impl Stream<Item = I> + Send) -> impl Stream<Item = Self::Out> + Send {
-        input.map(self.map)
+    fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> {
+        (self.map)(input).map(Ok).into_stream()
     }
 }
 
-pub struct MapOk<U, F, E> {
+pub fn filter_map<U, F>(map: F) -> FilterMap<U, F> {
+    FilterMap {
+        map,
+        m: PhantomData,
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FilterMap<U, F> {
+    pub(crate) map: F,
+    pub(crate) m: PhantomData<U>,
+}
+
+impl<I, U, F> Service<I> for FilterMap<U, F>
+where
+    F: AsyncFnMut(I) -> Option<U>,
+{
+    type Out = Result<U, Void>;
+
+    fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> {
+        (self.map)(input)
+            .map(Ok)
+            .into_stream()
+            .try_filter_map(async |x| Ok(x))
+    }
+}
+
+pub fn try_map<U, E, F>(map: F) -> TryMap<U, E, F> {
+    TryMap {
+        map,
+        m: PhantomData,
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TryMap<U, E, F> {
     pub(crate) map: F,
     pub(crate) m: PhantomData<(U, E)>,
 }
 
-impl<I, U, F, E> Service<Result<I, E>> for MapOk<U, F, E>
+impl<I, U, E, F> Service<I> for TryMap<U, E, F>
 where
-    F: Send + FnMut(I) -> U,
+    F: AsyncFnMut(I) -> Result<U, E>,
 {
     type Out = Result<U, E>;
 
-    fn handle(
-        self,
-        input: impl Stream<Item = Result<I, E>> + Send,
-    ) -> impl Stream<Item = Self::Out> + Send {
-        input.map_ok(self.map)
+    fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> {
+        (self.map)(input).into_stream()
+    }
+}
+
+pub fn try_filter_map<U, E, F>(map: F) -> TryFilterMap<U, E, F> {
+    TryFilterMap {
+        map,
+        m: PhantomData,
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TryFilterMap<U, E, F> {
+    pub(crate) map: F,
+    pub(crate) m: PhantomData<(U, E)>,
+}
+
+impl<I, U, E, F> Service<I> for TryFilterMap<U, E, F>
+where
+    F: AsyncFnMut(I) -> Result<Option<U>, E>,
+{
+    type Out = Result<U, E>;
+
+    fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> {
+        (self.map)(input)
+            .into_stream()
+            .try_filter_map(async |x| Ok(x))
     }
 }

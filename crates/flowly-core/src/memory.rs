@@ -14,7 +14,7 @@ pub enum MemDevice {
     Gpu(u32),
 }
 
-pub trait MemBlock {
+pub trait MemBlock: Send {
     type Ref<'a>: MemBlock + Clone
     where
         Self: 'a;

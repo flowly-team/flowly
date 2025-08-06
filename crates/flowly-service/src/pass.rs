@@ -1,17 +1,18 @@
 use std::marker::PhantomData;
 
+use flowly_core::Void;
 use futures::Stream;
 
-use crate::Service;
+use crate::{Context, Service};
 
 #[derive(Debug, Clone)]
 pub struct Pass<I>(pub PhantomData<I>);
 
 impl<I> Service<I> for Pass<I> {
-    type Out = I;
+    type Out = Result<I, Void>;
 
     #[inline]
-    fn handle(self, input: impl Stream<Item = I>) -> impl Stream<Item = Self::Out> {
-        input
+    fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> {
+        futures::stream::once(async move { Ok(input) })
     }
 }

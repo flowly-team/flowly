@@ -1,67 +1,57 @@
+use arrayvec::ArrayVec;
 pub use bytes::TryGetError;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
-pub trait Reader {
-    fn remaining(&self) -> usize;
+pub trait Reader: Buf {
+    fn read_string(&mut self, len: usize) -> Result<String, TryGetError> {
+        let mut buf = BytesMut::with_capacity(len);
+        buf.put(Buf::take(self, len));
 
-    fn advance(&mut self, cnt: usize);
-    fn read_f64(&mut self) -> Result<f64, TryGetError>;
-    fn read_f32(&mut self) -> Result<f32, TryGetError>;
-    fn read_int(&mut self, nbytes: usize) -> Result<i64, TryGetError>;
-    fn read_uint(&mut self, nbytes: usize) -> Result<u64, TryGetError>;
-    fn read_i64(&mut self) -> Result<i64, TryGetError>;
-    fn read_u64(&mut self) -> Result<u64, TryGetError>;
-    fn read_i32(&mut self) -> Result<i32, TryGetError>;
-    fn read_u32(&mut self) -> Result<u32, TryGetError>;
-    fn read_i16(&mut self) -> Result<i16, TryGetError>;
-    fn read_u16(&mut self) -> Result<u16, TryGetError>;
-    fn read_i8(&mut self) -> Result<i8, TryGetError>;
-    fn read_u8(&mut self) -> Result<u8, TryGetError>;
-
-    fn read_array<const N: usize>(&mut self) -> Result<[u8; N], TryGetError>;
-    fn read_bytes(&mut self, len: usize) -> Result<Bytes, TryGetError>;
-    fn read_string(&mut self, len: usize) -> Result<String, TryGetError>;
-
-    #[inline]
-    fn has_remaining(&self) -> bool {
-        self.remaining() > 0
+        String::from_utf8(buf.into()).map_err(|_| TryGetError {
+            requested: 0,
+            available: 0,
+        })
     }
 
-    #[inline]
-    fn read_i24(&mut self) -> Result<i32, TryGetError> {
-        Ok(self.read_int(3)? as i32)
+    fn read_array<const N: usize>(&mut self, len: usize) -> Result<ArrayVec<u8, N>, TryGetError> {
+        let mut arr = ArrayVec::new();
+        unsafe { arr.set_len(usize::min(N, len)) };
+        self.read_slice(&mut arr)?;
+
+        Ok(arr)
     }
 
-    #[inline]
-    fn read_u24(&mut self) -> Result<u32, TryGetError> {
-        Ok(self.read_uint(3)? as u32)
+    fn read_slice(&mut self, dst: &mut [u8]) -> Result<(), TryGetError> {
+        self.try_copy_to_slice(dst)
     }
 
-    #[inline]
-    fn read_i48(&mut self) -> Result<i64, TryGetError> {
-        Ok(self.read_int(6)? as i64)
+    fn read_bytes(&mut self, len: usize) -> Result<Bytes, TryGetError> {
+        let available = Self::remaining(self);
+        if available < len {
+            Err(TryGetError {
+                requested: len,
+                available,
+            })
+        } else {
+            Ok(self.copy_to_bytes(len))
+        }
     }
 
-    #[inline]
-    fn read_u48(&mut self) -> Result<u64, TryGetError> {
-        Ok(self.read_uint(6)? as u64)
-    }
+    fn read_bytes_prepend(&mut self, len: usize, prep: &[u8]) -> Result<Bytes, TryGetError> {
+        let available = Self::remaining(self);
 
-    #[inline]
-    fn read_remaining(&mut self) -> Bytes {
-        self.read_bytes(self.remaining()).unwrap()
-    }
-}
+        if available < len {
+            Err(TryGetError {
+                requested: len,
+                available,
+            })
+        } else {
+            let mut ret = BytesMut::with_capacity(len + prep.len());
+            ret.put(prep);
+            ret.put(self.take(len));
 
-impl<T: Buf> Reader for T {
-    #[inline]
-    fn remaining(&self) -> usize {
-        Buf::remaining(self)
-    }
-
-    #[inline]
-    fn advance(&mut self, cnt: usize) {
-        Buf::advance(self, cnt)
+            Ok(ret.freeze())
+        }
     }
 
     #[inline]
@@ -125,36 +115,37 @@ impl<T: Buf> Reader for T {
     }
 
     #[inline]
-    fn read_string(&mut self, len: usize) -> Result<String, TryGetError> {
-        let mut buf = BytesMut::with_capacity(len);
-        buf.put(self.take(len));
-
-        String::from_utf8(buf.into()).map_err(|_| TryGetError {
-            requested: 0,
-            available: 0,
-        })
+    fn peek_u8(&mut self) -> Result<u8, TryGetError> {
+        self.chunk().read_u8()
     }
 
     #[inline]
-    fn read_bytes(&mut self, len: usize) -> Result<Bytes, TryGetError> {
-        let available = Buf::remaining(self);
-        if available < len {
-            Err(TryGetError {
-                requested: len,
-                available,
-            })
-        } else {
-            Ok(self.copy_to_bytes(len))
-        }
+    fn read_i24(&mut self) -> Result<i32, TryGetError> {
+        Ok(self.read_int(3)? as i32)
     }
 
     #[inline]
-    fn read_array<const N: usize>(&mut self) -> Result<[u8; N], TryGetError> {
-        let mut data = [0u8; N];
-        self.try_copy_to_slice(&mut data)?;
-        Ok(data)
+    fn read_u24(&mut self) -> Result<u32, TryGetError> {
+        Ok(self.read_uint(3)? as u32)
+    }
+
+    #[inline]
+    fn read_i48(&mut self) -> Result<i64, TryGetError> {
+        Ok(self.read_int(6)? as i64)
+    }
+
+    #[inline]
+    fn read_u48(&mut self) -> Result<u64, TryGetError> {
+        Ok(self.read_uint(6)? as u64)
+    }
+
+    #[inline]
+    fn read_remaining(&mut self) -> Bytes {
+        self.read_bytes(self.remaining()).unwrap()
     }
 }
+
+impl<T: Buf> Reader for T {}
 
 pub trait ReaderExt: Sized + Reader {
     #[inline]
@@ -256,22 +247,7 @@ pub trait ReaderExt: Sized + Reader {
 
 impl<T: Reader> ReaderExt for T {}
 
-pub trait Writer {
-    fn remaining(&self) -> usize;
-    fn put_f64(&mut self, val: f64);
-    fn put_f32(&mut self, val: f32);
-    fn put_int(&mut self, val: i64, nbytes: usize);
-    fn put_uint(&mut self, val: u64, nbytes: usize);
-    fn put_i64(&mut self, val: i64);
-    fn put_u64(&mut self, val: u64);
-    fn put_i32(&mut self, val: i32);
-    fn put_u32(&mut self, val: u32);
-    fn put_i16(&mut self, val: i16);
-    fn put_u16(&mut self, val: u16);
-    fn put_i8(&mut self, val: i8);
-    fn put_u8(&mut self, val: u8);
-    fn put_slice(&mut self, slice: &[u8]);
-
+pub trait Writer: BufMut {
     #[inline]
     fn put_i24(&mut self, val: i32) {
         self.put_int(val as i64, 3)
@@ -298,77 +274,7 @@ pub trait Writer {
     }
 }
 
-impl<T: BufMut> Writer for T {
-    #[inline]
-    fn remaining(&self) -> usize {
-        self.remaining_mut()
-    }
-
-    #[inline]
-    fn put_f64(&mut self, val: f64) {
-        self.put_f64(val);
-    }
-
-    #[inline]
-    fn put_f32(&mut self, val: f32) {
-        self.put_f32(val);
-    }
-
-    #[inline]
-    fn put_int(&mut self, val: i64, nbytes: usize) {
-        self.put_int(val, nbytes);
-    }
-
-    #[inline]
-    fn put_uint(&mut self, val: u64, nbytes: usize) {
-        self.put_uint(val, nbytes);
-    }
-
-    #[inline]
-    fn put_i64(&mut self, val: i64) {
-        self.put_i64(val);
-    }
-
-    #[inline]
-    fn put_u64(&mut self, val: u64) {
-        self.put_u64(val);
-    }
-
-    #[inline]
-    fn put_i32(&mut self, val: i32) {
-        self.put_i32(val);
-    }
-
-    #[inline]
-    fn put_u32(&mut self, val: u32) {
-        self.put_u32(val);
-    }
-
-    #[inline]
-    fn put_i16(&mut self, val: i16) {
-        self.put_i16(val);
-    }
-
-    #[inline]
-    fn put_u16(&mut self, val: u16) {
-        self.put_u16(val);
-    }
-
-    #[inline]
-    fn put_i8(&mut self, val: i8) {
-        self.put_i8(val);
-    }
-
-    #[inline]
-    fn put_u8(&mut self, val: u8) {
-        self.put_u8(val);
-    }
-
-    #[inline]
-    fn put_slice(&mut self, slice: &[u8]) {
-        self.put_slice(slice);
-    }
-}
+impl<T: BufMut> Writer for T {}
 
 pub trait WriterExt: Writer {
     fn put_u8p2<const A: u8, const B: u8>(&mut self, a: u8, b: u8) {
@@ -462,8 +368,21 @@ pub trait Encoder<T> {
     type Error;
 
     fn encode<W: Writer>(&mut self, item: &T, writer: &mut W) -> Result<(), Self::Error>;
-    fn estimate_size(&self, item: &T) -> usize {
-        let _ = item;
-        0
+    fn size_hint() -> (usize, Option<usize>) {
+        (0, None)
+    }
+    fn estimate_size(&self, _: &T) -> usize {
+        Self::size_hint().0
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct BytesDecoder;
+
+impl Decoder<Bytes> for BytesDecoder {
+    type Error = crate::Void;
+
+    fn decode<R: Reader>(&mut self, reader: &mut R) -> Result<Bytes, Self::Error> {
+        Ok(reader.read_bytes(reader.remaining()).unwrap())
     }
 }

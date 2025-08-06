@@ -1,17 +1,21 @@
-use futures::{Stream, TryStreamExt};
+use std::marker::PhantomData;
 
-use crate::Service;
+use futures::Stream;
+
+use crate::{Context, Service};
+
+#[inline]
+pub fn stub<O>() -> Stub<O> {
+    Stub(PhantomData)
+}
 
 #[derive(Debug, Clone)]
-pub struct Stub;
+pub struct Stub<O>(PhantomData<O>);
 
-impl<I, E> Service<Result<I, E>> for Stub {
-    type Out = Result<(), E>;
+impl<I, O> Service<I> for Stub<O> {
+    type Out = O;
 
-    fn handle(
-        self,
-        input: impl Stream<Item = Result<I, E>> + Send,
-    ) -> impl Stream<Item = Self::Out> + Send {
-        input.try_filter_map(|_| async move { Ok(None) })
+    fn handle(&mut self, _: I, _cx: &Context) -> impl Stream<Item = Self::Out> {
+        futures::stream::empty()
     }
 }

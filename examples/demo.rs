@@ -1,3 +1,4 @@
+use flowly::{Context, switch};
 use flowly_service::{Service, ServiceExt, flow};
 use futures::StreamExt;
 
@@ -5,36 +6,56 @@ use futures::StreamExt;
 pub enum Error1 {
     Test,
 }
+
 pub struct Service1;
+impl Service<i32> for Service1 {
+    type Out = Result<u64, Error2>;
 
-impl<E: Send> Service<Result<i32, E>> for Service1 {
-    type Out = Result<u64, Error2<E>>;
-
-    fn handle(
-        self,
-        input: impl futures::Stream<Item = Result<i32, E>> + Send,
-    ) -> impl futures::Stream<Item = Self::Out> + Send {
+    fn handle(&mut self, item: i32, _cx: &Context) -> impl futures::Stream<Item = Self::Out> {
         async_stream::try_stream! {
-            let mut input = std::pin::pin!(input);
-            while let Some(res) = input.next().await {
-                let item = res.map_err(Error2::Other)?;
-                yield item as u64 ;
-            }
+            yield item as u64;
+        }
+    }
+}
+
+pub struct Service2;
+impl Service<i32> for Service2 {
+    type Out = Result<u64, Error2>;
+
+    fn handle(&mut self, item: i32, _cx: &Context) -> impl futures::Stream<Item = Self::Out> {
+        async_stream::try_stream! {
+            yield item as u64 + 100;
         }
     }
 }
 #[derive(Debug)]
-pub enum Error2<E> {
-    Other(E),
+pub enum Error2 {}
+pub struct Service3;
+impl Service<i32> for Service3 {
+    type Out = Result<u64, Error2>;
+
+    fn handle(&mut self, item: i32, _cx: &Context) -> impl futures::Stream<Item = Self::Out> {
+        async_stream::try_stream! {
+            yield item as u64 * 100;
+        }
+    }
 }
-pub struct Service2;
 
 #[tokio::main]
 async fn main() {
-    let x = flow() // -
-        .flow(Service1);
+    let mut x = flow() // -
+        .flow(
+            switch::<i32, Result<u64, Error2>, _, _>(|x| x % 3)
+                .default(Service3)
+                .case(0, Service1)
+                .case(1, Service2),
+        );
 
-    let y = x.handle(futures::stream::iter([1i32, 2, 3, 4]).map(Ok::<i32, Error1>));
+    let cx = flowly_service::Context::new();
+    let y = x.handle_stream(
+        futures::stream::iter([0, 1i32, 2, 3, 4, 5, 6, 7, 8, 9]),
+        &cx,
+    );
 
     println!("{:?}", y.collect::<Vec<_>>().await);
 }

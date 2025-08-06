@@ -8,7 +8,7 @@ mod memory;
 mod void;
 
 pub use chunked::Chunked;
-pub use codec::{Decoder, Encoder, Reader, ReaderExt, Writer, WriterExt};
+pub use codec::{BytesDecoder, Decoder, Encoder, Reader, ReaderExt, Writer, WriterExt};
 pub use either::Either;
 pub use error::Error;
 pub use fourcc::Fourcc;

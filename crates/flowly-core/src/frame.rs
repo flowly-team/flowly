@@ -93,6 +93,26 @@ impl FrameSource for () {
     }
 }
 
+impl FrameSource for String {
+    type Source = Void;
+
+    fn kind(&self) -> FrameSourceKind {
+        FrameSourceKind::Unknown
+    }
+
+    fn url(&self) -> &str {
+        self
+    }
+
+    fn name(&self) -> &str {
+        self
+    }
+
+    fn source(&self) -> &Self::Source {
+        unreachable!()
+    }
+}
+
 /// Chunk of data in the stream
 pub trait DataFrame: Send + Clone {
     type Source: FrameSource;

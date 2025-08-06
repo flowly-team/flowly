@@ -12,6 +12,7 @@ categories = { workspace = true }
 keywords = { workspace = true }
 
 [dependencies]
+arrayvec = "0.7.6"
 bitflags = { workspace = true }
 bytes = { workspace = true }
 futures.workspace = true

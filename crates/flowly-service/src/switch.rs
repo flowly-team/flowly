@@ -1,250 +1,198 @@
-use std::{marker::PhantomData, pin::pin};
+use std::marker::PhantomData;
 
-use flowly_spsc::Sender;
-use futures::{Stream, StreamExt, TryFutureExt};
-use tokio::sync::mpsc;
+use futures::{Stream, StreamExt};
 
-use crate::Service;
-
-pub trait SwitchCase<T> {
-    fn test(&self, item: &T) -> bool;
-    fn apply(&mut self, item: T) -> impl Future<Output = Result<(), T>> + Send;
-}
+use crate::{Context, Service, stub::Stub};
 
 pub trait SwitchCaseMatch<T: ?Sized + PartialEq> {
     fn check_match(&self, needle: &T) -> bool;
 }
 
-// impl<const N: usize, T: ?Sized + PartialEq> SwitchCaseMatch<T> for [&T; N] {
-//     fn check_match(&self, needle: &T) -> bool {
-//         self.iter().any(|&x| x == needle)
-//     }
-// }
-
-// impl<const N: usize, T: ?Sized + PartialEq> SwitchCaseMatch<T> for &[&T; N] {
-//     fn check_match(&self, needle: &T) -> bool {
-//         self.iter().any(|&x| x == needle)
-//     }
-// }
-
-// impl<const N: usize, T: PartialEq> SwitchCaseMatch<T> for [T; N] {
-//     fn check_match(&self, needle: &T) -> bool {
-//         self.iter().any(|x| x == needle)
-//     }
-// }
-
-// impl<const N: usize, T: PartialEq> SwitchCaseMatch<T> for &[T; N] {
-//     fn check_match(&self, needle: &T) -> bool {
-//         self.iter().any(|x| x == needle)
-//     }
-// }
-
-// impl<T: PartialEq> SwitchCaseMatch<T> for T {
-//     fn check_match(&self, needle: &T) -> bool {
-//         self == needle
-//     }
-// }
-
-// impl<T: ?Sized + PartialEq> SwitchCaseMatch<T> for &T {
-//     fn check_match(&self, needle: &T) -> bool {
-//         self == &needle
-//     }
-// }
-
-// impl<T: ?Sized + PartialEq> SwitchCaseMatch<T> for &[&T] {
-//     fn check_match(&self, needle: &T) -> bool {
-//         self.iter().any(|&x| x == needle)
-//     }
-// }
-
-// impl<T: PartialEq> SwitchCaseMatch<T> for &[T] {
-//     fn check_match(&self, needle: &T) -> bool {
-//         self.iter().any(|x| x == needle)
-//     }
-// }
-
-pub struct ComposeCase<C1, C2> {
-    case1: C1,
-    case2: C2,
+impl<const N: usize, T: ?Sized + PartialEq> SwitchCaseMatch<T> for [&T; N] {
+    fn check_match(&self, needle: &T) -> bool {
+        self.iter().any(|&x| x == needle)
+    }
 }
 
-impl<T, C1, C2> SwitchCase<T> for ComposeCase<C1, C2>
+impl<const N: usize, T: ?Sized + PartialEq> SwitchCaseMatch<T> for &[&T; N] {
+    fn check_match(&self, needle: &T) -> bool {
+        self.iter().any(|&x| x == needle)
+    }
+}
+
+impl<const N: usize, T: PartialEq> SwitchCaseMatch<T> for [T; N] {
+    fn check_match(&self, needle: &T) -> bool {
+        self.iter().any(|x| x == needle)
+    }
+}
+
+impl<const N: usize, T: PartialEq> SwitchCaseMatch<T> for &[T; N] {
+    fn check_match(&self, needle: &T) -> bool {
+        self.iter().any(|x| x == needle)
+    }
+}
+
+impl<T: PartialEq> SwitchCaseMatch<T> for T {
+    fn check_match(&self, needle: &T) -> bool {
+        self == needle
+    }
+}
+
+impl<T: ?Sized + PartialEq> SwitchCaseMatch<T> for &T {
+    fn check_match(&self, needle: &T) -> bool {
+        self == &needle
+    }
+}
+
+impl<T: ?Sized + PartialEq> SwitchCaseMatch<T> for &[&T] {
+    fn check_match(&self, needle: &T) -> bool {
+        self.iter().any(|&x| x == needle)
+    }
+}
+
+impl<T: PartialEq> SwitchCaseMatch<T> for &[T] {
+    fn check_match(&self, needle: &T) -> bool {
+        self.iter().any(|x| x == needle)
+    }
+}
+
+pub struct Filter<I, F, S> {
+    f: F,
+    s: S,
+    _m: PhantomData<I>,
+}
+
+impl<I, F, S> Service<I> for Filter<I, F, S>
 where
-    C1: SwitchCase<T>,
-    C2: SwitchCase<T>,
-    T: Send,
-    Self: Send,
+    S: Service<I>,
+    F: Fn(&I) -> bool,
 {
-    #[inline]
-    fn test(&self, case: &T) -> bool {
-        self.case1.test(case) || self.case2.test(case)
-    }
+    type Out = S::Out;
 
-    async fn apply(&mut self, item: T) -> Result<(), T> {
-        if self.case1.test(&item) {
-            return self.case1.apply(item).await;
-        }
-
-        self.case2.apply(item).await
-    }
-}
-
-pub struct DefaultCase<I> {
-    sender: Sender<I>,
-}
-
-impl<I> SwitchCase<I> for DefaultCase<I>
-where
-    I: Send + Sync,
-{
-    fn test(&self, _case: &I) -> bool {
-        true
-    }
-
-    fn apply(&mut self, item: I) -> impl Future<Output = Result<(), I>> + Send {
-        self.sender.send(item).map_err(|x| x.val)
-    }
-}
-
-pub struct MatchCase<I, S, M, Cs> {
-    matcher: M,
-    selector: S,
-    sender: mpsc::Sender<I>,
-    service: Cs,
-}
-
-impl<I, U, S, M, Cs> SwitchCase<I> for MatchCase<I, S, M, Cs>
-where
-    M: SwitchCaseMatch<U>,
-    S: for<'a> Fn(&'a I) -> &'a U,
-    I: Send + Sync + 'static,
-    U: ?Sized + PartialEq,
-    Self: Send,
-{
-    fn test(&self, case: &I) -> bool {
-        self.matcher.check_match((self.selector)(case))
-    }
-
-    async fn apply(&mut self, item: I) -> Result<(), I> {
-        if self.test(&item) {
-            self.sender.send(item).await.map_err(|x| x.0)
+    fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> {
+        if (self.f)(&input) {
+            self.s.handle(input, cx).left_stream()
         } else {
-            Err(item)
+            futures::stream::empty().right_stream()
         }
     }
 }
 
-pub struct Switch<I, O, F, C> {
-    selector: F,
-    case: C,
-    sender: mpsc::Sender<O>,
-    receiver: mpsc::Receiver<O>,
-    m: PhantomData<I>,
+pub struct MapIfElse<I, F, S1, S2> {
+    f: F,
+    on_true: S1,
+    on_false: S2,
+    _m: PhantomData<I>,
 }
 
-impl<I, O, F, C> Service<I> for Switch<I, O, F, C>
+pub fn map_if_else<I, O, F, S1, S2>(f: F, on_true: S1, on_false: S2) -> impl Service<I, Out = O>
 where
-    I: Send,
-    O: Send,
-    C: Send + SwitchCase<I> + 'static,
+    F: Fn(&I) -> bool,
+    S1: Service<I, Out = O>,
+    S2: Service<I, Out = O>,
+{
+    MapIfElse {
+        f,
+        on_true,
+        on_false,
+        _m: PhantomData,
+    }
+}
+
+impl<I, O, F, S1, S2> Service<I> for MapIfElse<I, F, S1, S2>
+where
+    S1: Service<I, Out = O>,
+    S2: Service<I, Out = O>,
+    F: for<'a> Fn(&'a I) -> bool,
 {
     type Out = O;
 
-    fn handle(
-        mut self,
-        input: impl Stream<Item = I> + Send,
-    ) -> impl Stream<Item = Self::Out> + Send {
-        // async_stream::stream! {
-        //     let mut input = pin!(input);
-        //     let (tx, rx)
-
-        //     while let Some(item) = input.next().await {
-        //         if let Err(item) = self.case.apply(item).await {
-        //             //
-        //         }
-        //     }
-        // }
-
-        // tokio::spawn(async move {
-        //     let mut pinned = pin!(input);
-
-        //     while let Some(res) = pinned.next().await {
-        //         if let Err(_item) = self.case.apply(res).await {
-        //             // log::warn!("unhandled item!");
-        //         }
-        //     }
-        // });
-
-        futures::stream::poll_fn(move |cx| self.receiver.poll_recv(cx))
+    fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> {
+        if (self.f)(&input) {
+            self.on_true.handle(input, cx).left_stream()
+        } else {
+            self.on_false.handle(input, cx).right_stream()
+        }
     }
 }
 
-impl<I, O, U, F, C> Switch<I, O, F, C>
+pub enum Case<M, S> {
+    Case(M, S),
+    Default(S),
+    Stub,
+}
+
+pub struct Switch<I, M, F, D, S> {
+    selector: F,
+    case: Case<M, S>,
+    m: PhantomData<(I, D)>,
+}
+
+impl<I, O, F, D, S> Service<I> for Switch<I, O, F, D, S>
 where
-    U: ?Sized + PartialEq,
-    C: Send + SwitchCase<I> + 'static,
-    F: Clone + for<'a> Fn(&'a I) -> &'a U,
-    I: Sync + Send + 'static,
-    O: Sync + Send + 'static,
+    D: PartialEq,
+    F: Copy + Fn(&I) -> D,
+    S: Service<I, Out = O>,
 {
-    #[allow(clippy::type_complexity)]
+    type Out = O;
+
+    fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> {
+        async_stream::stream! {}
+    }
+}
+
+impl<I, O, M, F, D, S> Switch<I, M, F, D, S>
+where
+    D: PartialEq,
+    F: Copy + for<'a> Fn(&'a I) -> D + 'static,
+    S: Service<I, Out = O>,
+{
     #[inline]
-    pub fn case<M, Cs>(
+    pub fn case<A, Cs>(
         self,
-        matcher: M,
+        variant: A,
         service: Cs,
-    ) -> Switch<I, O, F, ComposeCase<C, MatchCase<I, F, M>>>
+    ) -> Switch<I, A, F, D, impl Service<I, Out = O>>
     where
-        M: SwitchCaseMatch<U>,
-        Cs: Send + Service<I>,
+        A: SwitchCaseMatch<D>,
+        Cs: Service<I, Out = O>,
     {
         Switch {
-            case: ComposeCase {
-                case1: self.case,
-                case2: MatchCase {
-                    matcher,
-                    service,
-                    selector: self.selector.clone(),
-                    sender: self.sender.clone(),
-                },
-            },
             selector: self.selector,
             m: PhantomData,
-            sender: self.sender,
-            receiver: self.receiver,
+            service: map_if_else(
+                move |x| {
+                    let d = (self.selector)(x);
+
+                    variant.check_match(&d)
+                },
+                service,
+                self.service,
+            ),
+            case: Case::Case(variant, service),
         }
     }
 
     #[inline]
-    pub fn default<Cs>(self, service: Cs) -> Switch<I, O, F, ComposeCase<C, DefaultCase<I>>> {
-        let (sender, receiver) = flowly_spsc::channel(1);
-
+    pub fn default<Cs>(self, service: Cs) -> Switch<I, O, F, D, impl Service<I, Out = O>>
+    where
+        Cs: Service<I, Out = O>,
+    {
         Switch {
-            case: ComposeCase {
-                case1: self.case,
-                case2: DefaultCase { sender },
-            },
             selector: self.selector,
             m: PhantomData,
-            stream: futures::stream::select(service.handle(receiver.map(Ok)), self.stream),
+            case: Case::Default(service),
         }
     }
 }
 
-pub fn switch<E, Q, F, U, R>(
-    selector: F,
-) -> Switch<F, VoidCase, R, E, impl Stream<Item = Result<Q, E>>>
+pub fn switch<I, O, F, D>(selector: F) -> Switch<I, O, F, D, Stub<O>>
 where
-    U: ?Sized + PartialEq,
-    F: Clone + for<'a> Fn(&'a R) -> &'a U,
-    R: Send + Sync + 'static,
-    E: Send + 'static,
-    Q: Send + 'static,
+    F: Fn(&I) -> D,
 {
     Switch {
         selector,
-        case: VoidCase,
         m: PhantomData,
-        stream: futures::stream::empty(),
+        case: Case::Stub,
     }
 }

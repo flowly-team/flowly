@@ -4,16 +4,20 @@ use futures::TryStreamExt;
 
 #[tokio::main]
 async fn main() {
-    let ppl = flow() // -
-        .flow(DirReader::new("*.mp4".to_string(), Default::default()));
+    let mut ppl = flow() // -
+        .flow(DirReader::new("*.flv".to_string(), Default::default()));
 
-    let a: [Result<&'static str, std::io::Error>; 3] = [
-        Ok("/home/andrey/demo/av1/"),
-        Ok("/home/andrey/demo/h264/"),
-        Ok("/home/andrey/demo/h265/"),
+    let a: [&'static str; 3] = [
+        "/home/andrey/demo/av1/",
+        "/home/andrey/demo/h264/",
+        "/home/andrey/demo/h265/",
     ];
 
-    let y = ppl.handle(futures::stream::iter(a));
+    let cx = flowly_service::Context::new();
+
+    let y = ppl.handle_stream(futures::stream::iter(a), &cx);
 
     println!("{:#?}", y.try_collect::<Vec<_>>().await);
+
+    ppl.finalize(&cx).await;
 }
