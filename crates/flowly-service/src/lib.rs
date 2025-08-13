@@ -1,7 +1,7 @@
 mod and_then;
 mod map;
 mod pass;
-// mod spawn;
+mod spawn;
 mod stub;
 // mod switch;
 // mod maybe;
@@ -12,6 +12,7 @@ mod stub;
 pub use and_then::and_then;
 use flowly_core::{Either, Void};
 pub use map::{filter_map, map, try_filter_map, try_map};
+use spawn::SpawnEach;
 pub use stub::stub;
 // pub use switch::{map_if_else, switch};
 
@@ -24,6 +25,7 @@ pub fn flow<I>() -> pass::Pass<I> {
     pass::Pass(PhantomData)
 }
 
+#[derive(Clone)]
 pub struct Context {
     pub abort_tx: tokio::sync::watch::Sender<bool>,
     pub abort: tokio::sync::watch::Receiver<bool>,
@@ -39,13 +41,18 @@ impl Context {
 pub trait Service<In> {
     type Out;
 
-    fn handle(&mut self, input: In, cx: &Context) -> impl Stream<Item = Self::Out>;
+    fn handle(&mut self, input: In, cx: &Context) -> impl Stream<Item = Self::Out> + Send;
 
     fn handle_stream(
         &mut self,
-        input: impl Stream<Item = In>,
+        input: impl Stream<Item = In> + Send,
         cx: &Context,
-    ) -> impl Stream<Item = Self::Out> {
+    ) -> impl Stream<Item = Self::Out> + Send
+    where
+        In: Send,
+        Self: Send,
+        Self::Out: Send,
+    {
         async_stream::stream! {
             let mut input = pin!(input);
 
@@ -69,12 +76,17 @@ pub trait Service<In> {
 
 impl<I, O1, E1, O2, E2, S1, S2> Service<I> for (S1, S2)
 where
-    S1: Service<I, Out = Result<O1, E1>>,
-    S2: Service<O1, Out = Result<O2, E2>>,
+    I: Send,
+    O1: Send,
+    O2: Send,
+    E1: Send,
+    E2: Send,
+    S1: Service<I, Out = Result<O1, E1>> + Send,
+    S2: Service<O1, Out = Result<O2, E2>> + Send,
 {
     type Out = Result<O2, Either<E1, E2>>;
 
-    fn handle(&mut self, msg: I, cx: &Context) -> impl Stream<Item = Self::Out> {
+    fn handle(&mut self, msg: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         async_stream::stream! {
             let mut s1 = pin!(self.0.handle(msg, cx));
 
@@ -94,15 +106,14 @@ where
     }
 }
 
-pub trait ServiceExt<I>: Service<I> {
+pub trait ServiceExt<I: Send>: Service<I> {
     #[inline]
-    fn flow<O1, O2, E1, E2, U>(
+    fn flow<O1: Send, O2: Send, E1: Send, E2: Send, U: Send>(
         self,
         service: U,
     ) -> impl Service<I, Out = Result<O2, Either<E1, E2>>>
     where
-        Self: Sized,
-        Self: Service<I, Out = Result<O1, E1>>,
+        Self: Sized + Service<I, Out = Result<O1, E1>> + Send,
         U: Service<O1, Out = Result<O2, E2>>,
     {
         (self, service)
@@ -117,34 +128,49 @@ pub trait ServiceExt<I>: Service<I> {
     // }
 
     #[inline]
-    fn flow_map<O1, O2, E1, F: AsyncFnMut(O1) -> O2>(
-        self,
-        f: F,
-    ) -> impl Service<I, Out = Result<O2, Either<E1, Void>>>
+    fn spawn_each(self) -> SpawnEach<I, Self>
     where
-        Self: Sized + Service<I, Out = Result<O1, E1>>,
+        Self: Sized + Send,
+    {
+        SpawnEach::new(self)
+    }
+
+    #[inline]
+    fn flow_map<O1, O2, E1, F, H>(self, f: F) -> impl Service<I, Out = Result<O2, Either<E1, Void>>>
+    where
+        Self: Sized + Service<I, Out = Result<O1, E1>> + Send,
+        F: FnMut(O1) -> H + Send,
+        H: Future<Output = O2> + Send,
+        O1: Send,
+        O2: Send,
+        E1: Send,
     {
         (self, map::map::<O2, _>(f))
     }
 
     #[inline]
-    fn flow_filter_map<O1, O2, E1, F: AsyncFnMut(O1) -> Option<O2>>(
+    fn flow_filter_map<O1, O2, E1, F, H>(
         self,
         f: F,
     ) -> impl Service<I, Out = Result<O2, Either<E1, Void>>>
     where
-        Self: Sized + Service<I, Out = Result<O1, E1>>,
+        Self: Sized + Service<I, Out = Result<O1, E1>> + Send,
+        O1: Send,
+        O2: Send,
+        E1: Send,
+        F: FnMut(O1) -> H + Send,
+        H: Future<Output = Option<O2>> + Send,
     {
         (self, map::filter_map::<O2, _>(f))
     }
 }
 
-impl<I, T: Service<I>> ServiceExt<I> for T {}
+impl<I: Send, T: Service<I>> ServiceExt<I> for T {}
 
-impl<I, E, S: Service<I, Out = Result<I, E>>> Service<I> for Option<S> {
+impl<I: Send, E, S: Service<I, Out = Result<I, E>>> Service<I> for Option<S> {
     type Out = Result<I, E>;
 
-    fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> {
+    fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         if let Some(srv) = self {
             srv.handle(input, cx).left_stream()
         } else {

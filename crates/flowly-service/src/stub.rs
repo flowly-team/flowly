@@ -12,10 +12,10 @@ pub fn stub<O>() -> Stub<O> {
 #[derive(Debug, Clone)]
 pub struct Stub<O>(PhantomData<O>);
 
-impl<I, O> Service<I> for Stub<O> {
+impl<I: Send, O: Send> Service<I> for Stub<O> {
     type Out = O;
 
-    fn handle(&mut self, _: I, _cx: &Context) -> impl Stream<Item = Self::Out> {
+    fn handle(&mut self, _: I, _cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         futures::stream::empty()
     }
 }

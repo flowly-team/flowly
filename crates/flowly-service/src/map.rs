@@ -18,13 +18,14 @@ pub struct Map<U, F> {
     pub(crate) m: PhantomData<U>,
 }
 
-impl<I, U, F> Service<I> for Map<U, F>
+impl<I, U, H, F> Service<I> for Map<U, F>
 where
-    F: AsyncFnMut(I) -> U,
+    F: FnMut(I) -> H + Send,
+    H: Future<Output = U> + Send,
 {
     type Out = Result<U, Void>;
 
-    fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> {
+    fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         (self.map)(input).map(Ok).into_stream()
     }
 }
@@ -42,13 +43,15 @@ pub struct FilterMap<U, F> {
     pub(crate) m: PhantomData<U>,
 }
 
-impl<I, U, F> Service<I> for FilterMap<U, F>
+impl<I, U, H, F> Service<I> for FilterMap<U, F>
 where
-    F: AsyncFnMut(I) -> Option<U>,
+    F: FnMut(I) -> H + Send,
+    H: Future<Output = Option<U>> + Send,
+    U: Send,
 {
     type Out = Result<U, Void>;
 
-    fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> {
+    fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         (self.map)(input)
             .map(Ok)
             .into_stream()
@@ -69,9 +72,10 @@ pub struct TryMap<U, E, F> {
     pub(crate) m: PhantomData<(U, E)>,
 }
 
-impl<I, U, E, F> Service<I> for TryMap<U, E, F>
+impl<I, U, E, H, F> Service<I> for TryMap<U, E, F>
 where
-    F: AsyncFnMut(I) -> Result<U, E>,
+    F: FnMut(I) -> H + Send,
+    H: Future<Output = Result<U, E>> + Send,
 {
     type Out = Result<U, E>;
 
@@ -93,9 +97,11 @@ pub struct TryFilterMap<U, E, F> {
     pub(crate) m: PhantomData<(U, E)>,
 }
 
-impl<I, U, E, F> Service<I> for TryFilterMap<U, E, F>
+impl<I, U, E, H, F> Service<I> for TryFilterMap<U, E, F>
 where
-    F: AsyncFnMut(I) -> Result<Option<U>, E>,
+    F: FnMut(I) -> H,
+    H: Future<Output = Result<Option<U>, E>> + Send,
+    U: Send,
 {
     type Out = Result<U, E>;
 

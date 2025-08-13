@@ -8,11 +8,11 @@ use crate::{Context, Service};
 #[derive(Debug, Clone)]
 pub struct Pass<I>(pub PhantomData<I>);
 
-impl<I> Service<I> for Pass<I> {
+impl<I: Send> Service<I> for Pass<I> {
     type Out = Result<I, Void>;
 
     #[inline]
-    fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> {
+    fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         futures::stream::once(async move { Ok(input) })
     }
 }
