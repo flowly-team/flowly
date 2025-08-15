@@ -7,7 +7,7 @@ use std::{
 
 use futures::Stream;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Either<L, R = L> {
     Left(L),
     Right(R),

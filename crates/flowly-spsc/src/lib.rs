@@ -113,7 +113,17 @@ impl<T> Sender<T> {
         self.shared.closed.store(true, Ordering::Relaxed)
     }
 
+    #[inline]
+    pub fn try_send(&mut self, item: T) -> Result<(), TrySendError<T>> {
+        self.try_send_inner(item, true)
+    }
+
+    #[inline]
     pub fn start_send(&mut self, item: T) -> Result<(), TrySendError<T>> {
+        self.try_send_inner(item, false)
+    }
+
+    fn try_send_inner(&mut self, item: T, wake: bool) -> Result<(), TrySendError<T>> {
         if self.is_closed() {
             return Err(TrySendError {
                 err: SendError::Disconnected,
@@ -124,6 +134,10 @@ impl<T> Sender<T> {
         if let Some(idx) = self.next_idx() {
             unsafe {
                 self.shared.set_unchecked(idx, item);
+            }
+
+            if wake {
+                self.shared.consumer.wake();
             }
 
             Ok(())

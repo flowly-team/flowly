@@ -5,7 +5,7 @@ use futures::Stream;
 
 use crate::{Context, Service};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Pass<I>(pub PhantomData<I>);
 
 impl<I: Send> Service<I> for Pass<I> {

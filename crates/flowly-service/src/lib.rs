@@ -10,7 +10,7 @@ mod stub;
 // mod flatten;
 
 pub use and_then::and_then;
-use flowly_core::{Either, Void};
+use flowly_core::Either;
 pub use map::{filter_map, map, try_filter_map, try_map};
 use spawn::SpawnEach;
 pub use stub::stub;
@@ -108,10 +108,7 @@ where
 
 pub trait ServiceExt<I: Send>: Service<I> {
     #[inline]
-    fn flow<O1: Send, O2: Send, E1: Send, E2: Send, U: Send>(
-        self,
-        service: U,
-    ) -> impl Service<I, Out = Result<O2, Either<E1, E2>>>
+    fn flow<O1: Send, O2: Send, E1: Send, E2: Send, U: Send>(self, service: U) -> (Self, U)
     where
         Self: Sized + Service<I, Out = Result<O1, E1>> + Send,
         U: Service<O1, Out = Result<O2, E2>>,
@@ -130,13 +127,14 @@ pub trait ServiceExt<I: Send>: Service<I> {
     #[inline]
     fn spawn_each(self) -> SpawnEach<I, Self>
     where
-        Self: Sized + Send,
+        Self: Sized + Send + Clone,
+        Self::Out: Send,
     {
         SpawnEach::new(self)
     }
 
     #[inline]
-    fn flow_map<O1, O2, E1, F, H>(self, f: F) -> impl Service<I, Out = Result<O2, Either<E1, Void>>>
+    fn flow_map<O1, O2, E1, F, H>(self, f: F) -> (Self, map::Map<O2, F>)
     where
         Self: Sized + Service<I, Out = Result<O1, E1>> + Send,
         F: FnMut(O1) -> H + Send,
@@ -149,10 +147,7 @@ pub trait ServiceExt<I: Send>: Service<I> {
     }
 
     #[inline]
-    fn flow_filter_map<O1, O2, E1, F, H>(
-        self,
-        f: F,
-    ) -> impl Service<I, Out = Result<O2, Either<E1, Void>>>
+    fn flow_filter_map<O1, O2, E1, F, H>(self, f: F) -> (Self, map::FilterMap<O2, F>)
     where
         Self: Sized + Service<I, Out = Result<O1, E1>> + Send,
         O1: Send,
