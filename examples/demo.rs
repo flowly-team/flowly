@@ -1,4 +1,4 @@
-use flowly::{Context, switch};
+use flowly::Context;
 use flowly_service::{Service, ServiceExt, flow};
 use futures::StreamExt;
 
@@ -44,12 +44,13 @@ impl Service<i32> for Service3 {
 #[tokio::main]
 async fn main() {
     let mut x = flow() // -
-        .flow(
-            switch::<i32, Result<u64, Error2>, _, _>(|x| x % 3)
-                .default(Service3)
-                .case(0, Service1)
-                .case(1, Service2),
-        );
+        // .flow(
+            // switch::<i32, Result<u64, Error2>, _, _>(|x| x % 3)
+            //     .default(Service3)
+            //     .case(0, Service1)
+            //     .case(1, Service2),
+        // )
+        ;
 
     let cx = flowly_service::Context::new();
     let y = x.handle_stream(

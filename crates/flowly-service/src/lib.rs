@@ -14,6 +14,7 @@ use flowly_core::Either;
 pub use map::{filter_map, map, try_filter_map, try_map};
 use spawn::SpawnEach;
 pub use stub::stub;
+use tokio::sync::watch;
 // pub use switch::{map_if_else, switch};
 
 use std::{marker::PhantomData, pin::pin};
@@ -26,15 +27,30 @@ pub fn flow<I>() -> pass::Pass<I> {
 }
 
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct Context {
-    pub abort_tx: tokio::sync::watch::Sender<bool>,
-    pub abort: tokio::sync::watch::Receiver<bool>,
+    pub abort: watch::Sender<bool>,
+    pub abort_recv: watch::Receiver<bool>,
+}
+
+impl Default for Context {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl From<watch::Sender<bool>> for Context {
+    fn from(abort: watch::Sender<bool>) -> Self {
+        Self {
+            abort_recv: abort.subscribe(),
+            abort,
+        }
+    }
 }
 
 impl Context {
     pub fn new() -> Self {
-        let (abort_tx, abort) = tokio::sync::watch::channel(false);
-        Self { abort, abort_tx }
+        Self::from(watch::Sender::default())
     }
 }
 

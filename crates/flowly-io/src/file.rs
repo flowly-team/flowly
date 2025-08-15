@@ -111,7 +111,7 @@ impl<P: AsRef<Path> + Send> Service<P> for DirReader {
             match glob::glob_with(&shared.path, self.options) {
                 Ok(paths) => {
                     for p in paths {
-                        match cx.abort.has_changed() {
+                        match cx.abort_recv.has_changed() {
                             Ok(true) | Err(_) => break,
                             _ => ()
                         }
@@ -155,7 +155,7 @@ impl<P: AsRef<Path> + Send + Sync> Service<P> for FileReader {
                     let shared = Arc::new(FileSouce { path: path.as_ref().display().to_string() });
 
                     loop {
-                        match cx.abort.has_changed() {
+                        match cx.abort_recv.has_changed() {
                             Ok(true) | Err(_) => break,
                             _ => ()
                         }
