@@ -91,7 +91,7 @@ impl<T: Buf> Buf for Chunked<T> {
 
     fn copy_to_bytes(&mut self, len: usize) -> Bytes {
         if let Some(chunk) = self.chunks.front_mut() {
-            return if chunk.remaining() > len {
+            if chunk.remaining() > len {
                 self.remaining -= len;
                 chunk.copy_to_bytes(len)
             } else if chunk.remaining() == len {
@@ -102,7 +102,7 @@ impl<T: Buf> Buf for Chunked<T> {
                 let mut ret = bytes::BytesMut::with_capacity(len);
                 ret.put(self.take(len));
                 ret.freeze()
-            };
+            }
         } else {
             panic!("copy_to_bytes: no available chunks!");
         }
@@ -266,7 +266,7 @@ mod tests {
         ];
 
         assert_eq!(bytes.chunks_vectored(&mut bufs), 4);
-        Cursor::new(&mut dst).write_vectored(&bufs[0..4]).unwrap();
+        let _ = Cursor::new(&mut dst).write_vectored(&bufs[0..4]).unwrap();
 
         assert_eq!(&dst[..], b"hello, world!");
 
@@ -282,7 +282,7 @@ mod tests {
         let mut bufs = [IoSlice::new(&[]), IoSlice::new(&[])];
 
         assert_eq!(bytes.chunks_vectored(&mut bufs), 2);
-        Cursor::new(&mut dst).write_vectored(&bufs[0..2]).unwrap();
+        let _ = Cursor::new(&mut dst).write_vectored(&bufs[0..2]).unwrap();
 
         assert_eq!(&dst[..], b"hello, ");
     }

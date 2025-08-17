@@ -131,12 +131,12 @@ pub trait Reader: Buf {
 
     #[inline]
     fn read_i48(&mut self) -> Result<i64, TryGetError> {
-        Ok(self.read_int(6)? as i64)
+        self.read_int(6)
     }
 
     #[inline]
     fn read_u48(&mut self) -> Result<u64, TryGetError> {
-        Ok(self.read_uint(6)? as u64)
+        self.read_uint(6)
     }
 
     #[inline]

@@ -30,6 +30,11 @@ pub trait MemBlock: Send {
     }
 
     #[inline]
+    fn is_empty(&self) -> bool {
+        self.len() > 0
+    }
+
+    #[inline]
     fn layout(&self) -> Layout {
         let mapped = self.map_to_cpu();
         let len = mapped.len();
@@ -71,7 +76,7 @@ impl MemBlock for Bytes {
     }
 }
 
-impl<'a> MemBlock for &'a [u8] {
+impl MemBlock for &[u8] {
     type Ref<'b>
         = &'b [u8]
     where
@@ -93,7 +98,7 @@ impl<'a> MemBlock for &'a [u8] {
     }
 }
 
-impl<'a> MemBlock for &'a Bytes {
+impl MemBlock for &Bytes {
     type Ref<'b>
         = &'b [u8]
     where

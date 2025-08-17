@@ -1,5 +1,5 @@
 use flowly::Context;
-use flowly_service::{Service, ServiceExt, flow};
+use flowly_service::{Service, flow};
 use futures::StreamExt;
 
 #[derive(Debug)]

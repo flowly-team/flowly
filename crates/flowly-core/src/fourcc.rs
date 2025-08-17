@@ -6,7 +6,6 @@ impl Fourcc {
     ///
     /// Audio Codecs
     ///
-
     /// Dolby AC-3    
     pub const AUDIO_AC3: Fourcc = Fourcc(*b"ac-3");
 
@@ -33,7 +32,6 @@ impl Fourcc {
     ///
     /// Video Codecs
     ///
-
     /// VP8 Video Codec
     pub const VIDEO_VP8: Fourcc = Fourcc(*b"vp08");
 
@@ -56,7 +54,7 @@ impl Fourcc {
     pub const VIDEO_JPEG: Fourcc = Fourcc(*b"JPEG");
 
     /// Pixel formats
-
+    ///
     /// | C1 C2 C3 C4 C5 C6 C7 C8 |
     pub const PIXEL_FORMAT_C1: Fourcc = Fourcc(*b"C1  ");
 
