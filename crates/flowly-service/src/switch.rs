@@ -10,25 +10,25 @@ pub trait SwitchCaseMatch<T: ?Sized + PartialEq> {
 
 impl<const N: usize, T: ?Sized + PartialEq> SwitchCaseMatch<T> for [&T; N] {
     fn check_match(&self, needle: &T) -> bool {
-        self.iter().any(|&x| x == needle)
+        self.contains(&needle)
     }
 }
 
 impl<const N: usize, T: ?Sized + PartialEq> SwitchCaseMatch<T> for &[&T; N] {
     fn check_match(&self, needle: &T) -> bool {
-        self.iter().any(|&x| x == needle)
+        self.contains(&needle)
     }
 }
 
 impl<const N: usize, T: PartialEq> SwitchCaseMatch<T> for [T; N] {
     fn check_match(&self, needle: &T) -> bool {
-        self.iter().any(|x| x == needle)
+        self.contains(needle)
     }
 }
 
 impl<const N: usize, T: PartialEq> SwitchCaseMatch<T> for &[T; N] {
     fn check_match(&self, needle: &T) -> bool {
-        self.iter().any(|x| x == needle)
+        self.contains(needle)
     }
 }
 
@@ -46,153 +46,195 @@ impl<T: ?Sized + PartialEq> SwitchCaseMatch<T> for &T {
 
 impl<T: ?Sized + PartialEq> SwitchCaseMatch<T> for &[&T] {
     fn check_match(&self, needle: &T) -> bool {
-        self.iter().any(|&x| x == needle)
+        self.contains(&needle)
     }
 }
 
 impl<T: PartialEq> SwitchCaseMatch<T> for &[T] {
     fn check_match(&self, needle: &T) -> bool {
-        self.iter().any(|x| x == needle)
+        self.contains(needle)
     }
 }
 
-pub struct Filter<I, F, S> {
-    f: F,
-    s: S,
-    _m: PhantomData<I>,
+pub trait SwitchCase<I>: Service<I> {
+    fn try_match(&self, item: &I) -> bool;
 }
 
-impl<I, F, S> Service<I> for Filter<I, F, S>
+impl<I: Send, O: Send> SwitchCase<I> for Stub<O> {
+    fn try_match(&self, _item: &I) -> bool {
+        false
+    }
+}
+
+pub struct SwitchDefaultCase<I, S, C> {
+    case: Option<C>,
+    service: S,
+    m: PhantomData<I>,
+}
+
+impl<I, S, C> Service<I> for SwitchDefaultCase<I, S, C>
 where
     S: Service<I>,
-    F: Fn(&I) -> bool,
+    C: SwitchCase<I, Out = S::Out>,
+    S::Out: Send,
 {
     type Out = S::Out;
 
-    fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> {
-        if (self.f)(&input) {
-            self.s.handle(input, cx).left_stream()
+    fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
+        if let Some(case) = &mut self.case
+            && case.try_match(&input)
+        {
+            case.handle(input, cx).left_stream()
         } else {
-            futures::stream::empty().right_stream()
+            self.service.handle(input, cx).right_stream()
         }
     }
 }
 
-pub struct MapIfElse<I, F, S1, S2> {
-    f: F,
-    on_true: S1,
-    on_false: S2,
-    _m: PhantomData<I>,
-}
-
-pub fn map_if_else<I, O, F, S1, S2>(f: F, on_true: S1, on_false: S2) -> impl Service<I, Out = O>
-where
-    F: Fn(&I) -> bool,
-    S1: Service<I, Out = O>,
-    S2: Service<I, Out = O>,
-{
-    MapIfElse {
-        f,
-        on_true,
-        on_false,
-        _m: PhantomData,
-    }
-}
-
-impl<I, O, F, S1, S2> Service<I> for MapIfElse<I, F, S1, S2>
-where
-    S1: Service<I, Out = O>,
-    S2: Service<I, Out = O>,
-    F: for<'a> Fn(&'a I) -> bool,
-{
-    type Out = O;
-
-    fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> {
-        if (self.f)(&input) {
-            self.on_true.handle(input, cx).left_stream()
-        } else {
-            self.on_false.handle(input, cx).right_stream()
-        }
-    }
-}
-
-pub enum Case<M, S> {
-    Case(M, S),
-    Default(S),
-    Stub,
-}
-
-pub struct Switch<I, M, F, D, S> {
+pub struct SwitchMatchCase<I, F, A, S, C> {
+    case: Option<C>,
     selector: F,
-    case: Case<M, S>,
-    m: PhantomData<(I, D)>,
+    service: S,
+    variant: A,
+    m: PhantomData<I>,
 }
 
-impl<I, O, F, D, S> Service<I> for Switch<I, O, F, D, S>
+impl<I, F, A, S, C> Service<I> for SwitchMatchCase<I, F, A, S, C>
 where
-    D: PartialEq,
-    F: Copy + Fn(&I) -> D,
-    S: Service<I, Out = O>,
+    S: Service<I>,
+    C: SwitchCase<I, Out = S::Out>,
+    S::Out: Send,
 {
-    type Out = O;
+    type Out = S::Out;
 
-    fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> {
-        async_stream::stream! {}
+    fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
+        if let Some(case) = &mut self.case
+            && case.try_match(&input)
+        {
+            case.handle(input, cx).left_stream()
+        } else {
+            self.service.handle(input, cx).right_stream()
+        }
     }
 }
 
-impl<I, O, M, F, D, S> Switch<I, M, F, D, S>
+impl<I, F, D, A, S, C> SwitchCase<I> for SwitchMatchCase<I, F, A, S, C>
 where
+    S: Service<I>,
+    C: SwitchCase<I, Out = S::Out>,
+    A: SwitchCaseMatch<D>,
+    F: Fn(&I) -> D,
+    S::Out: Send,
+    D: std::cmp::PartialEq,
+{
+    fn try_match(&self, item: &I) -> bool {
+        if let Some(case) = &self.case
+            && case.try_match(item)
+        {
+            return true;
+        }
+
+        let d = (self.selector)(item);
+
+        self.variant.check_match(&d)
+    }
+}
+
+impl<I, F, D, A, S, C> SwitchMatchCase<I, F, A, S, C>
+where
+    I: Send,
+    S: Service<I>,
+    S::Out: Send,
+    F: Clone + Fn(&I) -> D,
+    C: SwitchCase<I, Out = S::Out>,
+    A: SwitchCaseMatch<D>,
+    D: std::cmp::PartialEq,
+{
+    #[inline]
+    pub fn case<B, Cs>(
+        self,
+        variant: B,
+        service: Cs,
+    ) -> SwitchMatchCase<I, F, B, Cs, impl SwitchCase<I, Out = S::Out>>
+    where
+        A: SwitchCaseMatch<D>,
+        Cs: Service<I, Out = S::Out>,
+    {
+        SwitchMatchCase {
+            selector: self.selector.clone(),
+            case: Some(self),
+            variant,
+            service,
+            m: PhantomData,
+        }
+    }
+
+    #[inline]
+    pub fn default<Cs>(
+        self,
+        service: Cs,
+    ) -> SwitchDefaultCase<I, Cs, impl SwitchCase<I, Out = S::Out>>
+    where
+        Cs: Service<I, Out = S::Out>,
+    {
+        SwitchDefaultCase {
+            case: Some(self),
+            service,
+            m: PhantomData,
+        }
+    }
+}
+
+pub struct Switch<I, O, F, D> {
+    selector: F,
+    m: PhantomData<(I, O, D)>,
+}
+
+impl<I, O, F, D> Switch<I, O, F, D>
+where
+    I: Send,
     D: PartialEq,
-    F: Copy + for<'a> Fn(&'a I) -> D + 'static,
-    S: Service<I, Out = O>,
+    O: Send,
+    F: Copy + Fn(&I) -> D,
 {
     #[inline]
     pub fn case<A, Cs>(
         self,
         variant: A,
         service: Cs,
-    ) -> Switch<I, A, F, D, impl Service<I, Out = O>>
+    ) -> SwitchMatchCase<I, F, A, Cs, impl SwitchCase<I, Out = O>>
     where
         A: SwitchCaseMatch<D>,
         Cs: Service<I, Out = O>,
     {
-        Switch {
+        SwitchMatchCase {
+            case: None::<Stub<O>>,
             selector: self.selector,
+            variant,
+            service,
             m: PhantomData,
-            service: map_if_else(
-                move |x| {
-                    let d = (self.selector)(x);
-
-                    variant.check_match(&d)
-                },
-                service,
-                self.service,
-            ),
-            case: Case::Case(variant, service),
         }
     }
 
     #[inline]
-    pub fn default<Cs>(self, service: Cs) -> Switch<I, O, F, D, impl Service<I, Out = O>>
+    pub fn default<Cs>(self, service: Cs) -> SwitchDefaultCase<I, Cs, impl SwitchCase<I, Out = O>>
     where
         Cs: Service<I, Out = O>,
     {
-        Switch {
-            selector: self.selector,
+        SwitchDefaultCase {
+            case: None::<Stub<O>>,
+            service,
             m: PhantomData,
-            case: Case::Default(service),
         }
     }
 }
 
-pub fn switch<I, O, F, D>(selector: F) -> Switch<I, O, F, D, Stub<O>>
+pub fn switch<I, O, F, D>(selector: F) -> Switch<I, O, F, D>
 where
     F: Fn(&I) -> D,
 {
     Switch {
         selector,
         m: PhantomData,
-        case: Case::Stub,
     }
 }

@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use flowly_core::Void;
-use futures::{FutureExt, Stream, TryStreamExt};
+use futures::{FutureExt, Stream, StreamExt, TryStreamExt};
 
 use crate::{Context, Service};
 
@@ -109,5 +109,43 @@ where
         (self.map)(input)
             .into_stream()
             .try_filter_map(async |x| Ok(x))
+    }
+}
+
+pub struct MapIfElse<I, F, S1, S2> {
+    f: F,
+    on_true: S1,
+    on_false: S2,
+    _m: PhantomData<I>,
+}
+
+pub fn map_if_else<I, O, F, S1, S2>(f: F, on_true: S1, on_false: S2) -> impl Service<I, Out = O>
+where
+    F: Fn(&I) -> bool,
+    S1: Service<I, Out = O>,
+    S2: Service<I, Out = O>,
+{
+    MapIfElse {
+        f,
+        on_true,
+        on_false,
+        _m: PhantomData,
+    }
+}
+
+impl<I, O, F, S1, S2> Service<I> for MapIfElse<I, F, S1, S2>
+where
+    S1: Service<I, Out = O>,
+    S2: Service<I, Out = O>,
+    F: for<'a> Fn(&'a I) -> bool,
+{
+    type Out = O;
+
+    fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> {
+        if (self.f)(&input) {
+            self.on_true.handle(input, cx).left_stream()
+        } else {
+            self.on_false.handle(input, cx).right_stream()
+        }
     }
 }

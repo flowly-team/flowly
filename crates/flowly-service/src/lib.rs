@@ -1,9 +1,10 @@
 mod and_then;
+mod filter;
 mod map;
 mod pass;
 mod spawn;
 mod stub;
-// mod switch;
+mod switch;
 // mod maybe;
 // mod optional;
 // mod finally;
@@ -11,11 +12,11 @@ mod stub;
 
 pub use and_then::and_then;
 use flowly_core::Either;
-pub use map::{filter_map, map, try_filter_map, try_map};
+pub use map::{filter_map, map, map_if_else, try_filter_map, try_map};
 use spawn::SpawnEach;
 pub use stub::stub;
+pub use switch::switch;
 use tokio::sync::watch;
-// pub use switch::{map_if_else, switch};
 
 use std::{marker::PhantomData, pin::pin};
 
