@@ -180,7 +180,7 @@ dependencies = [
 
 [[package]]
 name = "flowly"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "async-stream",
  "bytes",
@@ -195,7 +195,7 @@ dependencies = [
 
 [[package]]
 name = "flowly-core"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "arrayvec",
  "bitflags",
@@ -206,7 +206,7 @@ dependencies = [
 
 [[package]]
 name = "flowly-io"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "async-stream",
  "bytes",
@@ -220,7 +220,7 @@ dependencies = [
 
 [[package]]
 name = "flowly-service"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "async-stream",
  "flowly-core",
@@ -234,7 +234,7 @@ dependencies = [
 
 [[package]]
 name = "flowly-spsc"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "atomic-waker",
  "futures",
