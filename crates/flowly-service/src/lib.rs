@@ -128,12 +128,11 @@ pub trait ServiceExt<I: Send>: Service<I> {
     fn flow<O1, O2, E1, E2, U>(self, service: U) -> (Self, U)
     where
         Self: Sized + Service<I, Out = Result<O1, E1>> + Send,
-        U: Service<O1, Out = Result<O2, E2>>,
+        U: Send + Service<O1, Out = Result<O2, E2>>,
         O1: Send,
         O2: Send,
         E1: Send,
         E2: Send,
-        U: Send,
     {
         (self, service)
     }

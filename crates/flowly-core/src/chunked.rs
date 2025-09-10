@@ -27,7 +27,7 @@ impl<T> Chunked<T> {
     }
 
     #[inline]
-    pub fn iter(&self) -> vec_deque::Iter<T> {
+    pub fn iter(&self) -> vec_deque::Iter<'_, T> {
         self.chunks.iter()
     }
 }

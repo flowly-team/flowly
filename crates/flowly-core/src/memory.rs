@@ -31,7 +31,7 @@ pub trait MemBlock: Send {
 
     #[inline]
     fn is_empty(&self) -> bool {
-        self.len() > 0
+        self.len() == 0
     }
 
     #[inline]
@@ -57,7 +57,7 @@ impl MemBlock for Bytes {
 
     #[inline]
     fn borrow(&self) -> Self::Ref<'_> {
-        todo!()
+        self
     }
 
     #[inline]
@@ -73,6 +73,30 @@ impl MemBlock for Bytes {
     #[inline]
     fn into_cpu_bytes(self) -> Bytes {
         self
+    }
+}
+
+impl MemBlock for Vec<u8> {
+    type Ref<'a> = &'a [u8];
+
+    #[inline]
+    fn borrow(&self) -> Self::Ref<'_> {
+        self
+    }
+
+    #[inline]
+    fn device(&self) -> MemDevice {
+        MemDevice::Cpu
+    }
+
+    #[inline]
+    fn map_to_cpu(&self) -> &[u8] {
+        self
+    }
+
+    #[inline]
+    fn into_cpu_bytes(self) -> Bytes {
+        self.into()
     }
 }
 
