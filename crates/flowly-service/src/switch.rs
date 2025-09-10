@@ -80,14 +80,15 @@ where
 {
     type Out = S::Out;
 
+    #[allow(clippy::collapsible_if)]
     fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
-        if let Some(case) = &mut self.case
-            && case.try_match(&input)
-        {
-            case.handle(input, cx).left_stream()
-        } else {
-            self.service.handle(input, cx).right_stream()
+        if let Some(case) = &mut self.case {
+            if case.try_match(&input) {
+                return case.handle(input, cx).left_stream();
+            }
         }
+
+        self.service.handle(input, cx).right_stream()
     }
 }
 
@@ -107,14 +108,15 @@ where
 {
     type Out = S::Out;
 
+    #[allow(clippy::collapsible_if)]
     fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
-        if let Some(case) = &mut self.case
-            && case.try_match(&input)
-        {
-            case.handle(input, cx).left_stream()
-        } else {
-            self.service.handle(input, cx).right_stream()
+        if let Some(case) = &mut self.case {
+            if case.try_match(&input) {
+                return case.handle(input, cx).left_stream();
+            }
         }
+
+        self.service.handle(input, cx).right_stream()
     }
 }
 
@@ -127,11 +129,12 @@ where
     S::Out: Send,
     D: std::cmp::PartialEq,
 {
+    #[allow(clippy::collapsible_if)]
     fn try_match(&self, item: &I) -> bool {
-        if let Some(case) = &self.case
-            && case.try_match(item)
-        {
-            return true;
+        if let Some(case) = &self.case {
+            if case.try_match(item) {
+                return true;
+            }
         }
 
         let d = (self.selector)(item);
