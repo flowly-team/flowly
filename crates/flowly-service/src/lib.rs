@@ -5,15 +5,11 @@ mod pass;
 mod spawn;
 mod stub;
 mod switch;
-// mod maybe;
-// mod optional;
-// mod finally;
-// mod flatten;
 
 pub use and_then::and_then;
 use flowly_core::Either;
 pub use map::{filter_map, map, map_if_else, try_filter_map, try_map};
-use spawn::SpawnEach;
+pub use spawn::{SpawnEach, spawn_each};
 pub use stub::stub;
 pub use switch::switch;
 use tokio::sync::watch;

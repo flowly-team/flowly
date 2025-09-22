@@ -39,6 +39,4 @@ async fn main() {
         futures::stream::iter([0i32, 10, 20, 30, 40, 50, 60, 70, 80, 90]),
         &cx,
     );
-
-    println!("{:?}", y.try_collect::<Vec<_>>().await);
 }
