@@ -1,7 +1,9 @@
 mod and_then;
 mod filter;
+mod inspect;
 mod map;
 mod pass;
+mod scope;
 mod spawn;
 mod stub;
 mod switch;
@@ -9,6 +11,7 @@ mod switch;
 pub use and_then::and_then;
 use flowly_core::Either;
 pub use map::{filter_map, map, map_if_else, try_filter_map, try_map};
+pub use pass::flow;
 pub use spawn::{SpawnEach, spawn_each};
 pub use stub::stub;
 pub use switch::switch;
@@ -18,10 +21,7 @@ use std::{marker::PhantomData, pin::pin};
 
 use futures::{Stream, StreamExt};
 
-#[inline]
-pub fn flow<I>() -> pass::Pass<I> {
-    pass::Pass(PhantomData)
-}
+use crate::scope::Scope;
 
 #[derive(Clone)]
 #[non_exhaustive]
@@ -133,13 +133,22 @@ pub trait ServiceExt<I: Send>: Service<I> {
         (self, service)
     }
 
-    // #[inline]
-    // fn spawn(self) -> spawn::Spawn<Self>
-    // where
-    //     Self: Sized,
-    // {
-    //     spawn::Spawn { service: self }
-    // }
+    #[inline]
+    fn flow_inspect<O, E, F>(self, f: F) -> (Self, inspect::Inspect<O, E, F>)
+    where
+        Self: Sized + Service<I, Out = Result<O, E>> + Send,
+        F: Fn(&O) + Send,
+        O: Send,
+        E: Send,
+    {
+        (
+            self,
+            inspect::Inspect::<O, E, F> {
+                cb: f,
+                _m: PhantomData,
+            },
+        )
+    }
 
     #[inline]
     fn spawn_each(self) -> SpawnEach<I, Self>
@@ -148,6 +157,17 @@ pub trait ServiceExt<I: Send>: Service<I> {
         Self::Out: Send,
     {
         SpawnEach::new(self)
+    }
+
+    #[inline]
+    fn flow_scope<O, M, E1, S, F>(self, f: F, s: S) -> (Self, Scope<O, M, E1, S, F>)
+    where
+        F: Fn(&O) -> Result<M, E1>,
+        Self: Sized + Send,
+        O: Send,
+        E1: Send,
+    {
+        (self, scope::scope(f, s))
     }
 
     #[inline]

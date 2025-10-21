@@ -1,6 +1,6 @@
 use flowly::Context;
 use flowly_service::{Service, ServiceExt, flow};
-use futures::{StreamExt, TryStreamExt};
+use futures::StreamExt;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Error {
@@ -39,4 +39,6 @@ async fn main() {
         futures::stream::iter([0i32, 10, 20, 30, 40, 50, 60, 70, 80, 90]),
         &cx,
     );
+
+    y.for_each_concurrent(128, async |_x| ()).await;
 }

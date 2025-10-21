@@ -8,6 +8,7 @@ use crate::{Context, Service};
 const MAX_SPAWN_TASKS: usize = 256;
 
 struct SpawnEachTask<I: Send, S: Service<I>> {
+    #[allow(dead_code)]
     id: u32,
     tx: flowly_spsc::Sender<I>,
     m: PhantomData<S>,
@@ -32,8 +33,6 @@ where
 
         let _handle = tokio::spawn(async move {
             'recv: while let Some(item) = rx.recv().await {
-                println!("[{id}] got item");
-
                 let mut s = pin!(s.handle(item, &cx));
 
                 while let Some(x) = s.next().await {
@@ -118,22 +117,6 @@ where
     type Out = S::Out;
 
     fn handle(&mut self, mut input: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
-        let index = if self.tasks.is_empty() {
-            0
-        } else {
-            fastrand::usize(0..self.tasks.len())
-        };
-
-        let (left, right) = self.tasks.split_at_mut(index);
-
-        for task in right.iter_mut().chain(left.iter_mut()) {
-            if let Err(err) = task.tx.try_send(input) {
-                input = err.val;
-            } else {
-                return self.drain_rx().right_stream();
-            }
-        }
-
         if self.tasks.len() < MAX_SPAWN_TASKS {
             self.tasks.push(SpawnEachTask::new(
                 self.counter,
@@ -147,6 +130,18 @@ where
             self.counter += 1;
             self.drain_rx().right_stream()
         } else {
+            let index = fastrand::usize(0..self.tasks.len());
+
+            let (left, right) = self.tasks.split_at_mut(index);
+
+            for task in right.iter_mut().chain(left.iter_mut()) {
+                if let Err(err) = task.tx.try_send(input) {
+                    input = err.val;
+                } else {
+                    return self.drain_rx().right_stream();
+                }
+            }
+
             async move {
                 if self.tasks[index].send(input).await.is_err() {
                     log::error!("cannot send the message. channel closed!");

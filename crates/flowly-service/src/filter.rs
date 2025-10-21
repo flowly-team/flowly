@@ -4,6 +4,7 @@ use futures::{Stream, StreamExt};
 
 use crate::Service;
 
+#[allow(dead_code)]
 pub struct Filter<I, F, S> {
     f: F,
     s: S,
