@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use flowly_core::Void;
 use futures::{FutureExt, Stream, StreamExt, TryStreamExt};
 
 use crate::{Context, Service};
@@ -23,10 +22,10 @@ where
     F: FnMut(I) -> H + Send,
     H: Future<Output = U> + Send,
 {
-    type Out = Result<U, Void>;
+    type Out = U;
 
     fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> + Send {
-        (self.map)(input).map(Ok).into_stream()
+        (self.map)(input).into_stream()
     }
 }
 
@@ -49,13 +48,10 @@ where
     H: Future<Output = Option<U>> + Send,
     U: Send,
 {
-    type Out = Result<U, Void>;
+    type Out = U;
 
     fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> + Send {
-        (self.map)(input)
-            .map(Ok)
-            .into_stream()
-            .try_filter_map(async |x| Ok(x))
+        (self.map)(input).into_stream().filter_map(async |x| x)
     }
 }
 

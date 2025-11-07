@@ -1,5 +1,6 @@
 mod and_then;
 mod concurrent_each;
+mod except;
 mod inspect;
 mod map;
 mod pass;
@@ -22,7 +23,7 @@ use std::{marker::PhantomData, pin::pin};
 
 use futures::{Stream, StreamExt, future};
 
-use crate::scope::Scope;
+use crate::{except::Except, scope::Scope};
 
 #[derive(Clone)]
 #[non_exhaustive]
@@ -133,6 +134,38 @@ where
     }
 }
 
+pub struct Left<S1, S2>(S1, S2);
+impl<I, O1, E, O2, S1, S2> Service<I> for Left<S1, S2>
+where
+    I: Send,
+    O1: Send,
+    O2: Send,
+    E: Send,
+    S1: Service<I, Out = Result<O1, E>> + Send,
+    S2: Service<O1, Out = O2> + Send,
+{
+    type Out = Result<O2, E>;
+
+    fn handle(&mut self, msg: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
+        async_stream::stream! {
+            let mut s1 = pin!(self.0.handle(msg, cx));
+
+            while let Some(res) = s1.next().await {
+                match res {
+                    Ok(ok) => {
+                        let mut s2 = pin!(self.1.handle(ok, cx));
+
+                        while let Some(i2) = s2.next().await {
+                            yield Ok(i2);
+                        }
+                    },
+                    Err(err) => yield Err(err),
+                }
+            }
+        }
+    }
+}
+
 pub trait ServiceExt<I: Send>: Service<I> {
     #[inline]
     fn flow<O1, O2, E1, E2, U>(self, service: U) -> (Self, U)
@@ -145,6 +178,17 @@ pub trait ServiceExt<I: Send>: Service<I> {
         E2: Send,
     {
         (self, service)
+    }
+
+    #[inline]
+    fn except<F>(self, on_err: F) -> Except<Self, F>
+    where
+        Self: Sized,
+    {
+        Except {
+            service: self,
+            on_err,
+        }
     }
 
     /// Adds an inspection step that invokes the supplied callback on every
@@ -182,16 +226,15 @@ pub trait ServiceExt<I: Send>: Service<I> {
     /// let flow = Flow::from(orig).and(inspector);
     /// ```
     #[inline]
-    fn flow_inspect<O, E, F>(self, f: F) -> (Self, inspect::Inspect<O, E, F>)
+    fn flow_inspect<O, E, F>(self, f: F) -> Left<Self, inspect::Inspect<O, F>>
     where
         Self: Sized + Service<I, Out = Result<O, E>> + Send,
         F: Fn(&O) + Send,
         O: Send,
-        E: Send,
     {
-        (
+        Left(
             self,
-            inspect::Inspect::<O, E, F> {
+            inspect::Inspect::<O, F> {
                 cb: f,
                 _m: PhantomData,
             },
@@ -329,7 +372,7 @@ pub trait ServiceExt<I: Send>: Service<I> {
     }
 
     #[inline]
-    fn flow_map<O1, O2, E1, F, H>(self, f: F) -> (Self, map::Map<O2, F>)
+    fn flow_map<O1, O2, E1, F, H>(self, f: F) -> Left<Self, map::Map<O2, F>>
     where
         Self: Sized + Service<I, Out = Result<O1, E1>> + Send,
         F: FnMut(O1) -> H + Send,
@@ -338,11 +381,11 @@ pub trait ServiceExt<I: Send>: Service<I> {
         O2: Send,
         E1: Send,
     {
-        (self, map::map::<O2, _>(f))
+        Left(self, map::map::<O2, _>(f))
     }
 
     #[inline]
-    fn flow_filter_map<O1, O2, E1, F, H>(self, f: F) -> (Self, map::FilterMap<O2, F>)
+    fn flow_filter_map<O1, O2, E1, F, H>(self, f: F) -> Left<Self, map::FilterMap<O2, F>>
     where
         Self: Sized + Service<I, Out = Result<O1, E1>> + Send,
         O1: Send,
@@ -351,7 +394,7 @@ pub trait ServiceExt<I: Send>: Service<I> {
         F: FnMut(O1) -> H + Send,
         H: Future<Output = Option<O2>> + Send,
     {
-        (self, map::filter_map::<O2, _>(f))
+        Left(self, map::filter_map::<O2, _>(f))
     }
 }
 

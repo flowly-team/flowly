@@ -6,23 +6,22 @@ use futures::Stream;
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone)]
-pub struct Inspect<I, E, F> {
+pub struct Inspect<I, F> {
     pub(crate) cb: F,
-    pub(crate) _m: PhantomData<(I, E)>,
+    pub(crate) _m: PhantomData<I>,
 }
 
-impl<I, E, F> Service<I> for Inspect<I, E, F>
+impl<I, F> Service<I> for Inspect<I, F>
 where
     I: Send,
-    E: Send,
     F: Send + Fn(&I),
 {
-    type Out = Result<I, E>;
+    type Out = I;
 
     fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         async move {
             (self.cb)(&input);
-            Ok(input)
+            input
         }
         .into_stream()
     }
