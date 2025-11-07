@@ -18,7 +18,9 @@ impl Service<i32> for Worker {
         _cx: &Context,
     ) -> impl futures::Stream<Item = Self::Out> + Send {
         async move {
+            println!("start {item}");
             tokio::time::sleep(std::time::Duration::from_millis(item as u64 * 10)).await;
+            println!("  end {item}");
             Ok(item as u64)
         }
         .into_stream()
@@ -28,20 +30,19 @@ impl Service<i32> for Worker {
 #[tokio::main]
 async fn main() {
     env_logger::init();
+
     let mut x = flow() // -
         .flow(Worker)
-        .spawn_each();
+        .concurrent_each(32);
 
     let cx = flowly_service::Context::new();
     let vec = x
-        .handle_stream(
-            futures::stream::iter([10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]),
-            &cx,
-        )
-        .try_flatten_unordered(16)
+        .handle_stream(futures::stream::iter((0..100).rev()), &cx)
+        .try_flatten_unordered(32)
         .try_collect::<Vec<_>>()
         .await
         .unwrap();
 
-    assert_eq!(vec, vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    println!("{:?}", vec);
+    // assert_eq!(vec, vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 }

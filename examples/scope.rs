@@ -5,6 +5,7 @@ use futures::{FutureExt, Stream, StreamExt};
 
 #[derive(Debug)]
 pub struct Msg {
+    #[allow(dead_code)]
     x: i32,
     val: u64,
 }
@@ -25,7 +26,7 @@ impl Service<u64> for Svc1 {
 
 #[tokio::main]
 async fn main() {
-    let mut service = flow::<Msg>().flow_scope(|x: &Msg| x.val, Svc1);
+    let mut service = flow::<Msg>().flow_scope(|x: &Msg| Ok::<_, Error>(x.val), Svc1);
     let cx = Context::new();
     let mut stream = pin!(service.handle(Msg { x: 0, val: 12 }, &cx));
 

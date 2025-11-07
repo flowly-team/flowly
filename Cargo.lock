@@ -186,7 +186,7 @@ checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
 name = "flowly"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "async-stream",
  "bytes",
@@ -196,12 +196,13 @@ dependencies = [
  "flowly-service",
  "flowly-spsc",
  "futures",
+ "log",
  "tokio",
 ]
 
 [[package]]
 name = "flowly-core"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "arrayvec",
  "bitflags",
@@ -212,7 +213,7 @@ dependencies = [
 
 [[package]]
 name = "flowly-io"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "async-stream",
  "bytes",
@@ -226,7 +227,7 @@ dependencies = [
 
 [[package]]
 name = "flowly-service"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "async-stream",
  "fastrand",
@@ -237,11 +238,12 @@ dependencies = [
  "pin-project-lite",
  "stream-cancel",
  "tokio",
+ "tokio-stream",
 ]
 
 [[package]]
 name = "flowly-spsc"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "atomic-waker",
  "futures",
@@ -704,6 +706,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "tokio-stream"
+version = "0.1.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eca58d7bba4a75707817a2c44174253f9236b2d5fbd055602e9d5c07c139a047"
+dependencies = [
+ "futures-core",
+ "pin-project-lite",
+ "tokio",
 ]
 
 [[package]]
