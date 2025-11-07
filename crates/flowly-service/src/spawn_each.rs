@@ -6,6 +6,7 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use crate::Service;
 
+#[derive(Clone)]
 pub struct SpawnEach<M, S> {
     service: S,
     buffer: usize,
@@ -60,6 +61,7 @@ where
         futures::stream::iter([Ok(ReceiverStream::new(rx))])
     }
 }
+
 pub fn spawn_each<M, S>(service: S) -> SpawnEach<M, S>
 where
     M: Send,

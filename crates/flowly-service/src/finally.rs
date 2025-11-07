@@ -4,6 +4,7 @@ use futures::{Stream, StreamExt};
 
 use crate::Service;
 
+#[derive(Clone)]
 pub struct Finally<F> {
     pub(crate) f: F,
 }
@@ -35,6 +36,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct Except<F> {
     pub(crate) f: F,
 }

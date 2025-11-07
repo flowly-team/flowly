@@ -100,6 +100,17 @@ pub struct ConcurrentEach<I: Send + 'static, S: Service<I>> {
     limit: usize,
 }
 
+impl<I: Send + 'static + Clone, S: Service<I> + Clone> Clone for ConcurrentEach<I, S> {
+    fn clone(&self) -> Self {
+        Self {
+            service: self.service.clone(),
+            tasks: Vec::new(),
+            _m: self._m,
+            limit: self.limit,
+        }
+    }
+}
+
 impl<I, S> ConcurrentEach<I, S>
 where
     I: Send,

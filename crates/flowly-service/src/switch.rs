@@ -66,6 +66,7 @@ impl<I: Send, O: Send> SwitchCase<I> for Stub<O> {
     }
 }
 
+#[derive(Clone)]
 pub struct SwitchDefaultCase<I, S, C> {
     case: Option<C>,
     service: S,
@@ -92,6 +93,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct SwitchMatchCase<I, F, A, S, C> {
     case: Option<C>,
     selector: F,
@@ -188,6 +190,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct Switch<I, O, F, D> {
     selector: F,
     m: PhantomData<(I, O, D)>,

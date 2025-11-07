@@ -6,6 +6,7 @@ pub fn and_then<C, F>(f: C) -> AndThenFn<C> {
     AndThenFn { f }
 }
 
+#[derive(Clone)]
 pub struct AndThenFn<C> {
     pub(crate) f: C,
 }

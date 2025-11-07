@@ -13,6 +13,7 @@ pub fn scope<I, M, E, S, F>(f: F, service: S) -> Scope<I, M, E, S, F> {
     }
 }
 
+#[derive(Clone)]
 pub struct Scope<I, M, E, S, F> {
     service: S,
     f: F,

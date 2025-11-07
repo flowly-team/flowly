@@ -108,6 +108,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct MapIfElse<I, F, S1, S2> {
     f: F,
     on_true: S1,

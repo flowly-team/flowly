@@ -4,6 +4,7 @@ use futures::{Stream, StreamExt};
 
 use crate::Service;
 
+#[derive(Clone)]
 pub struct TryFlattenMap<F> {
     pub(crate) f: F,
 }

@@ -134,6 +134,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct Left<S1, S2>(S1, S2);
 impl<I, O1, E, O2, S1, S2> Service<I> for Left<S1, S2>
 where

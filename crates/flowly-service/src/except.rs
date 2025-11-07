@@ -2,6 +2,7 @@ use tokio_stream::StreamExt;
 
 use crate::Service;
 
+#[derive(Clone)]
 pub struct Except<S, F> {
     pub(crate) service: S,
     pub(crate) on_err: F,
