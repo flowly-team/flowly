@@ -23,7 +23,8 @@ use std::{marker::PhantomData, pin::pin};
 
 use futures::{Stream, StreamExt, future};
 
-use crate::{except::Except, scope::Scope};
+pub use crate::except::Except;
+pub use crate::scope::{Scope, ScopeEach, scope, scope_each};
 
 #[derive(Clone)]
 #[non_exhaustive]
@@ -369,7 +370,18 @@ pub trait ServiceExt<I: Send>: Service<I> {
         O: Send,
         E1: Send,
     {
-        (self, scope::scope(f, s))
+        (self, scope(f, s))
+    }
+
+    #[inline]
+    fn flow_scope_each<O, M, E1, S, F>(self, f: F, s: S) -> (Self, ScopeEach<O, M, E1, S, F>)
+    where
+        F: Fn(&O) -> Result<M, E1>,
+        Self: Sized + Send,
+        E1: Send,
+        O: Send + Clone,
+    {
+        (self, scope_each(f, s))
     }
 
     #[inline]
