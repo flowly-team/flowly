@@ -1,8 +1,6 @@
 use std::{marker::PhantomData, pin::pin};
 
 use futures::StreamExt;
-use tokio::sync::mpsc;
-use tokio_stream::wrappers::ReceiverStream;
 
 use crate::Service;
 
@@ -37,7 +35,7 @@ where
     E: Send + 'static,
     S: Clone + Service<M, Out = Result<R, E>> + Send + 'static,
 {
-    type Out = Result<ReceiverStream<Result<R, E>>, E>;
+    type Out = Result<flowly_spsc::Receiver<Result<R, E>>, E>;
 
     fn handle(
         &mut self,
@@ -45,8 +43,9 @@ where
         cx: &crate::Context,
     ) -> impl futures::Stream<Item = Self::Out> + Send {
         let mut service = self.service.clone();
-        let (tx, rx) = mpsc::channel(self.buffer);
+        let (mut tx, rx) = flowly_spsc::channel(self.buffer);
         let cx = cx.clone();
+
         tokio::spawn(async move {
             let mut stream = pin!(service.handle(input, &cx));
 
@@ -58,7 +57,7 @@ where
             }
         });
 
-        futures::stream::iter([Ok(ReceiverStream::new(rx))])
+        futures::stream::iter([Ok(rx)])
     }
 }
 
