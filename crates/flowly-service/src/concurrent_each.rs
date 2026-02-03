@@ -1,7 +1,7 @@
 use std::{
     marker::PhantomData,
     pin::{Pin, pin},
-    sync::Arc,
+    sync::{Arc, OnceLock},
     task::{Poll, ready},
 };
 
@@ -32,10 +32,10 @@ impl<T: Send> Stream for ConcurrentRx<T> {
 struct ConcurrentTask<I: Send, S: Service<I>> {
     #[allow(dead_code)]
     id: u32,
-    tx: flowly_spsc::Sender<I>,
-    m: PhantomData<S>,
-    _handle: tokio::task::JoinHandle<()>,
+    tx: tokio::sync::mpsc::Sender<I>,
     rx: Arc<Mutex<flowly_spsc::Receiver<Option<S::Out>>>>,
+    _handle: tokio::task::JoinHandle<()>,
+    m: PhantomData<S>,
 }
 
 impl<I, S> ConcurrentTask<I, S>
@@ -44,8 +44,8 @@ where
     I: Send + 'static,
     S: Service<I> + Send + 'static,
 {
-    fn new(id: u32, mut s: S, cx: Context) -> Self {
-        let (tx, mut in_rx) = flowly_spsc::channel(1);
+    fn new(id: u32, mut s: Arc<S>, cx: Context) -> Self {
+        let (tx, mut in_rx) = tokio::sync::mpsc::channel(1);
         let (mut out_tx, out_rx) = flowly_spsc::channel(1);
 
         let _handle = tokio::spawn(async move {
@@ -82,9 +82,9 @@ where
 
     #[inline]
     async fn send(
-        &mut self,
+        &self,
         input: I,
-    ) -> Result<ConcurrentRx<S::Out>, flowly_spsc::TrySendError<I>> {
+    ) -> Result<ConcurrentRx<S::Out>, tokio::sync::mpsc::error::SendError<I>> {
         self.tx.send(input).await?;
 
         Ok(ConcurrentRx {
@@ -94,7 +94,7 @@ where
 }
 
 pub struct ConcurrentEach<I: Send + 'static, S: Service<I>> {
-    service: S,
+    service: Arc<S>,
     tasks: Vec<ConcurrentTask<I, S>>,
     _m: PhantomData<I>,
     limit: usize,
@@ -119,7 +119,7 @@ where
 {
     pub fn new(service: S, limit: usize) -> Self {
         Self {
-            service,
+            service: Arc::new(service),
             tasks: Vec::with_capacity(limit),
             _m: PhantomData,
             limit,
@@ -129,17 +129,18 @@ where
 
 impl<I, R, E, S> Service<I> for ConcurrentEach<I, S>
 where
-    I: Send,
+    I: Send + Sync,
     R: Send + 'static,
     E: Send + 'static,
     S: Service<I, Out = Result<R, E>> + Clone + Send + 'static,
 {
     type Out = Result<ConcurrentRx<S::Out>, E>;
 
-    fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
+    fn handle(&self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         async move {
             let index = if self.tasks.len() < self.limit {
                 let index = self.tasks.len();
+                // self.tasks[index]
                 self.tasks.push(ConcurrentTask::new(
                     index as u32,
                     self.service.clone(),

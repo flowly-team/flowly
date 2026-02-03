@@ -14,16 +14,12 @@ pub struct AndThenFn<C> {
 impl<I: Send, O, E, C, F> Service<Result<I, E>> for AndThenFn<C>
 where
     F: Future<Output = Result<O, E>> + Send,
-    C: FnMut(I) -> F + Send,
+    C: Fn(I) -> F + Send + Sync,
     E: std::marker::Send,
 {
     type Out = Result<O, E>;
 
-    fn handle(
-        &mut self,
-        input: Result<I, E>,
-        _cx: &Context,
-    ) -> impl Stream<Item = Self::Out> + Send {
+    fn handle(&self, input: Result<I, E>, _cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         async move {
             match input {
                 Ok(ok) => (self.f)(ok).await,

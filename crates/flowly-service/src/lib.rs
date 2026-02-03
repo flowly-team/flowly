@@ -66,12 +66,12 @@ impl Context {
     }
 }
 
-pub trait Service<In> {
+pub trait Service<In>: Send + Sync {
     type Out;
 
-    fn handle(&mut self, input: In, cx: &Context) -> impl Stream<Item = Self::Out> + Send;
+    fn handle(&self, input: In, cx: &Context) -> impl Stream<Item = Self::Out> + Send;
     fn handle_stream(
-        &mut self,
+        &self,
         input: impl Stream<Item = In> + Send,
         cx: &Context,
     ) -> impl Stream<Item = Self::Out> + Send
@@ -114,7 +114,7 @@ where
 {
     type Out = Result<O2, Either<E1, E2>>;
 
-    fn handle(&mut self, msg: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
+    fn handle(&self, msg: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         async_stream::stream! {
             let mut s1 = pin!(self.0.handle(msg, cx));
 
@@ -147,7 +147,7 @@ where
 {
     type Out = Result<O2, E>;
 
-    fn handle(&mut self, msg: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
+    fn handle(&self, msg: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         async_stream::stream! {
             let mut s1 = pin!(self.0.handle(msg, cx));
 
@@ -404,7 +404,7 @@ impl<I: Send, T: Service<I>> ServiceExt<I> for T {}
 impl<I: Send, E, S: Service<I, Out = Result<I, E>>> Service<I> for Option<S> {
     type Out = Result<I, E>;
 
-    fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
+    fn handle(&self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         if let Some(srv) = self {
             srv.handle(input, cx).left_stream()
         } else {
