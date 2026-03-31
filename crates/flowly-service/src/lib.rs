@@ -374,7 +374,7 @@ pub trait ServiceExt<I: Send>: Service<I> {
     }
 
     #[inline]
-    fn flow_scope_each<O, M, E1, S, F>(self, f: F, s: S) -> (Self, ScopeEach<O, M, E1, S, F>)
+    fn flow_scope_each<O, M, E1, S, F>(self, f: F, s: S) -> (Self, ScopeEach<O, M, S, F, E1>)
     where
         F: Fn(&O) -> Result<M, E1>,
         Self: Sized + Send,

@@ -13,7 +13,7 @@ pub fn scope<I, M, E, S, F>(f: F, service: S) -> Scope<I, M, E, S, F> {
     }
 }
 
-pub fn scope_each<I: Clone, M, E, S, F>(f: F, service: S) -> ScopeEach<I, M, E, S, F> {
+pub fn scope_each<I: Clone, M, S, F, E>(f: F, service: S) -> ScopeEach<I, M, S, F, E> {
     ScopeEach {
         service,
         f,
@@ -59,13 +59,13 @@ where
 }
 
 #[derive(Clone)]
-pub struct ScopeEach<I, M, E, S, F> {
+pub struct ScopeEach<I, M, S, F, E> {
     service: S,
     f: F,
     _m: PhantomData<(I, M, E)>,
 }
 
-impl<I, M, E1, O, E, S, F> Service<I> for ScopeEach<I, M, E1, S, F>
+impl<I, M, O, E, E1, S, F> Service<I> for ScopeEach<I, M, S, F, E1>
 where
     S: Service<M, Out = Result<O, E>> + Send,
     F: Send + Fn(&I) -> Result<M, E1>,
@@ -75,7 +75,7 @@ where
     E: Send,
     E1: Send,
 {
-    type Out = Result<(I, Result<O, E>), E1>;
+    type Out = Result<(I, O), Either<E, E1>>;
 
     fn handle(&mut self, msg: I, cx: &crate::Context) -> impl Stream<Item = Self::Out> + Send {
         async move {
@@ -83,8 +83,9 @@ where
                 Ok(m) => Ok(self
                     .service
                     .handle(m, cx)
-                    .map(move |x| Ok((msg.clone(), x)))),
-                Err(err) => Err(err),
+                    .map(move |x| x.map(|x| (msg.clone(), x)))
+                    .map_err(|err| Either::Left(err))),
+                Err(err) => Err(Either::Right(err)),
             }
         }
         .into_stream()
