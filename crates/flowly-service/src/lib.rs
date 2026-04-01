@@ -43,6 +43,11 @@ impl Context {
             future::Either::Right((val, _)) => Some(val),
         }
     }
+
+    #[inline]
+    pub fn alive(&self) -> bool {
+        *self.abort_recv.borrow() == false
+    }
 }
 
 impl Default for Context {
