@@ -11,7 +11,6 @@ mod switch;
 
 pub use and_then::and_then;
 pub use concurrent_each::{ConcurrentEach, concurrent_each};
-use flowly_core::Either;
 pub use map::{filter_map, map, map_if_else, try_filter_map, try_map};
 pub use pass::flow;
 pub use spawn_each::{SpawnEach, spawn_each};
@@ -103,17 +102,17 @@ pub trait Service<In> {
     }
 }
 
-impl<I, O1, E1, O2, E2, S1, S2> Service<I> for (S1, S2)
+impl<I, O1, E, O2, EI, S1, S2> Service<I> for (S1, S2)
 where
     I: Send,
     O1: Send,
     O2: Send,
-    E1: Send,
-    E2: Send,
-    S1: Service<I, Out = Result<O1, E1>> + Send,
-    S2: Service<O1, Out = Result<O2, E2>> + Send,
+    E: Send + From<EI>,
+    EI: Send,
+    S1: Service<I, Out = Result<O1, E>> + Send,
+    S2: Service<O1, Out = Result<O2, EI>> + Send,
 {
-    type Out = Result<O2, Either<E1, E2>>;
+    type Out = Result<O2, E>;
 
     fn handle(&mut self, msg: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         async_stream::stream! {
@@ -125,10 +124,10 @@ where
                         let mut s2 = pin!(self.1.handle(ok, cx));
 
                         while let Some(i2) = s2.next().await {
-                            yield i2.map_err(Either::Right);
+                            yield i2.map_err(E::from);
                         }
                     },
-                    Err(err) => yield Err(Either::Left(err)),
+                    Err(err) => yield Err(err),
                 }
             }
         }
@@ -170,14 +169,14 @@ where
 
 pub trait ServiceExt<I: Send>: Service<I> {
     #[inline]
-    fn flow<O1, O2, E1, E2, U>(self, service: U) -> (Self, U)
+    fn flow<O1, O2, E, EI, U>(self, service: U) -> (Self, U)
     where
-        Self: Sized + Service<I, Out = Result<O1, E1>> + Send,
-        U: Send + Service<O1, Out = Result<O2, E2>>,
+        Self: Sized + Service<I, Out = Result<O1, E>> + Send,
+        U: Send + Service<O1, Out = Result<O2, EI>>,
         O1: Send,
         O2: Send,
-        E1: Send,
-        E2: Send,
+        E: Send + From<EI>,
+        EI: Send,
     {
         (self, service)
     }
@@ -363,22 +362,22 @@ pub trait ServiceExt<I: Send>: Service<I> {
     /// # Constraints
     /// All involved types must be `Send`, and `Self` must implement `Sized + Send`.
     #[inline]
-    fn flow_scope<O, M, E1, S, F>(self, f: F, s: S) -> (Self, Scope<O, M, E1, S, F>)
+    fn flow_scope<O, M, E, S, F>(self, f: F, s: S) -> (Self, Scope<O, M, E, S, F>)
     where
-        F: Fn(&O) -> Result<M, E1>,
+        F: Fn(&O) -> Result<M, E>,
         Self: Sized + Send,
         O: Send,
-        E1: Send,
+        E: Send,
     {
         (self, scope(f, s))
     }
 
     #[inline]
-    fn flow_scope_each<O, M, E1, S, F>(self, f: F, s: S) -> (Self, ScopeEach<O, M, S, F, E1>)
+    fn flow_scope_each<O, M, E, S, F>(self, f: F, s: S) -> (Self, ScopeEach<O, M, S, F, E>)
     where
-        F: Fn(&O) -> Result<M, E1>,
+        F: Fn(&O) -> Result<M, E>,
         Self: Sized + Send,
-        E1: Send,
+        E: Send,
         O: Send + Clone,
     {
         (self, scope_each(f, s))

@@ -4,7 +4,7 @@ use futures::TryStreamExt;
 
 #[tokio::main]
 async fn main() {
-    let mut ppl = flow() // -
+    let mut ppl = flow::<_, flowly_io::error::Error>() // -
         .flow(DirReader::new("*.flv".to_string(), Default::default()));
 
     let a: [&'static str; 3] = [

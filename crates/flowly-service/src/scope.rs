@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use flowly_core::Either;
 use futures::{FutureExt, Stream, StreamExt, TryStreamExt};
 
 use crate::Service;
@@ -35,23 +34,21 @@ where
     M: Send,
     O: Send,
     I: Send,
-    E: Send,
+    E: Send + From<E1>,
     E1: Send,
 {
-    type Out = Result<(I, Result<Vec<O>, Either<E, E1>>), E1>;
+    type Out = Result<(I, Vec<O>), E>;
 
     fn handle(&mut self, msg: I, cx: &crate::Context) -> impl Stream<Item = Self::Out> + Send {
         async move {
             match (self.f)(&msg) {
-                Ok(m) => Ok((
-                    msg,
-                    self.service
-                        .handle(m, cx)
-                        .map_err(Either::Left)
-                        .try_collect()
-                        .await,
-                )),
-                Err(err) => Ok((msg, Err(Either::Right(err)))),
+                Ok(m) => self
+                    .service
+                    .handle(m, cx)
+                    .try_collect()
+                    .await
+                    .map(move |dat| (msg, dat)),
+                Err(err) => Err(E::from(err)),
             }
         }
         .into_stream()
@@ -72,10 +69,10 @@ where
     M: Send,
     O: Send,
     I: Send + Clone + Sync + 'static,
-    E: Send,
+    E: Send + From<E1>,
     E1: Send,
 {
-    type Out = Result<(I, O), Either<E, E1>>;
+    type Out = Result<(I, O), E>;
 
     fn handle(&mut self, msg: I, cx: &crate::Context) -> impl Stream<Item = Self::Out> + Send {
         async move {
@@ -83,9 +80,8 @@ where
                 Ok(m) => Ok(self
                     .service
                     .handle(m, cx)
-                    .map(move |x| x.map(|x| (msg.clone(), x)))
-                    .map_err(|err| Either::Left(err))),
-                Err(err) => Err(Either::Right(err)),
+                    .map(move |x| x.map(|x| (msg.clone(), x)))),
+                Err(err) => Err(E::from(err)),
             }
         }
         .into_stream()

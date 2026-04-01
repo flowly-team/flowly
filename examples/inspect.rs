@@ -26,7 +26,7 @@ impl Service<u64> for SvcU64 {
 
 #[tokio::main]
 async fn main() {
-    let mut service = flow()
+    let mut service = flow::<_, Error>()
         .flow(SvcI32)
         .flow_map(async |x| x as u64)
         .flow_filter_map(async |x| (x % 2 == 0).then_some(x))

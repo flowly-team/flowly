@@ -29,8 +29,8 @@ impl Service<u64> for Svc1 {
 
 #[tokio::main]
 async fn main() {
-    // let mut service = flow::<Msg>().flow_scope(|x: &Msg| Ok::<_, Error>(x.val), Svc1);
-    let mut service = flow::<Msg>().flow_scope_each(|x: &Msg| Ok::<_, Error>(x.val), Svc1);
+    // let mut service = flow::<Msg, Error>().flow_scope(|x: &Msg| Ok(x.val), Svc1);
+    let mut service = flow::<Msg, Error>().flow_scope_each(|x: &Msg| Ok(x.val), Svc1);
     let cx = Context::new();
     let mut stream = pin!(service.handle(Msg { val: 12 }, &cx));
 

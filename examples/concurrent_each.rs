@@ -31,7 +31,7 @@ impl Service<i32> for Worker {
 async fn main() {
     env_logger::init();
 
-    let mut x = flow() // -
+    let mut x = flow::<_, Error>() // -
         .flow(Worker)
         .concurrent_each(32);
 

@@ -31,6 +31,16 @@ impl<L, R> Either<L, R> {
     }
 }
 
+impl<T> Either<T, T> {
+    #[inline]
+    pub fn into_inner(self) -> T {
+        match self {
+            Either::Left(left) => left,
+            Either::Right(right) => right,
+        }
+    }
+}
+
 impl<L: fmt::Display, R: fmt::Display> fmt::Display for Either<L, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
