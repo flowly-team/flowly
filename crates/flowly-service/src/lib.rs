@@ -46,7 +46,7 @@ impl Context {
 
     #[inline]
     pub fn alive(&self) -> bool {
-        *self.abort_recv.borrow() == false
+        !*self.abort_recv.borrow()
     }
 }
 
@@ -71,12 +71,12 @@ impl Context {
     }
 }
 
-pub trait Service<In> {
+pub trait Service<In>: Send + Sync {
     type Out;
 
-    fn handle(&mut self, input: In, cx: &Context) -> impl Stream<Item = Self::Out> + Send;
+    fn handle(&self, input: In, cx: &Context) -> impl Stream<Item = Self::Out> + Send;
     fn handle_stream(
-        &mut self,
+        &self,
         input: impl Stream<Item = In> + Send,
         cx: &Context,
     ) -> impl Stream<Item = Self::Out> + Send
@@ -119,7 +119,7 @@ where
 {
     type Out = Result<O2, E>;
 
-    fn handle(&mut self, msg: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
+    fn handle(&self, msg: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         async_stream::stream! {
             let mut s1 = pin!(self.0.handle(msg, cx));
 
@@ -152,7 +152,7 @@ where
 {
     type Out = Result<O2, E>;
 
-    fn handle(&mut self, msg: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
+    fn handle(&self, msg: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         async_stream::stream! {
             let mut s1 = pin!(self.0.handle(msg, cx));
 
@@ -392,7 +392,7 @@ pub trait ServiceExt<I: Send>: Service<I> {
     fn flow_map<O1, O2, E1, F, H>(self, f: F) -> Left<Self, map::Map<O2, F>>
     where
         Self: Sized + Service<I, Out = Result<O1, E1>> + Send,
-        F: FnMut(O1) -> H + Send,
+        F: Fn(O1) -> H + Send,
         H: Future<Output = O2> + Send,
         O1: Send,
         O2: Send,
@@ -408,7 +408,7 @@ pub trait ServiceExt<I: Send>: Service<I> {
         O1: Send,
         O2: Send,
         E1: Send,
-        F: FnMut(O1) -> H + Send,
+        F: Fn(O1) -> H + Send,
         H: Future<Output = Option<O2>> + Send,
     {
         Left(self, map::filter_map::<O2, _>(f))
@@ -420,7 +420,7 @@ impl<I: Send, T: Service<I>> ServiceExt<I> for T {}
 impl<I: Send, E, S: Service<I, Out = Result<I, E>>> Service<I> for Option<S> {
     type Out = Result<I, E>;
 
-    fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
+    fn handle(&self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         if let Some(srv) = self {
             srv.handle(input, cx).left_stream()
         } else {

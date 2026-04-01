@@ -30,16 +30,16 @@ pub struct Scope<I, M, E, S, F> {
 impl<I, M, E1, O, E, S, F> Service<I> for Scope<I, M, E1, S, F>
 where
     S: Service<M, Out = Result<O, E>> + Send,
-    F: Send + Fn(&I) -> Result<M, E1>,
-    M: Send,
+    F: Send + Fn(&I) -> Result<M, E1> + Sync,
+    M: Send + Sync,
     O: Send,
-    I: Send,
-    E: Send + From<E1>,
-    E1: Send,
+    I: Send + Sync,
+    E: Send + Sync + From<E1>,
+    E1: Send + Sync,
 {
     type Out = Result<(I, Vec<O>), E>;
 
-    fn handle(&mut self, msg: I, cx: &crate::Context) -> impl Stream<Item = Self::Out> + Send {
+    fn handle(&self, msg: I, cx: &crate::Context) -> impl Stream<Item = Self::Out> + Send {
         async move {
             match (self.f)(&msg) {
                 Ok(m) => self
@@ -65,16 +65,16 @@ pub struct ScopeEach<I, M, S, F, E> {
 impl<I, M, O, E, E1, S, F> Service<I> for ScopeEach<I, M, S, F, E1>
 where
     S: Service<M, Out = Result<O, E>> + Send,
-    F: Send + Fn(&I) -> Result<M, E1>,
-    M: Send,
+    F: Send + Sync + Fn(&I) -> Result<M, E1>,
+    M: Send + Sync,
     O: Send,
     I: Send + Clone + Sync + 'static,
-    E: Send + From<E1>,
-    E1: Send,
+    E: Send + Sync + From<E1>,
+    E1: Send + Sync,
 {
     type Out = Result<(I, O), E>;
 
-    fn handle(&mut self, msg: I, cx: &crate::Context) -> impl Stream<Item = Self::Out> + Send {
+    fn handle(&self, msg: I, cx: &crate::Context) -> impl Stream<Item = Self::Out> + Send {
         async move {
             match (self.f)(&msg) {
                 Ok(m) => Ok(self

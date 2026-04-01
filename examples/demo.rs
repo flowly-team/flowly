@@ -6,7 +6,7 @@ pub struct Service1;
 impl Service<i32> for Service1 {
     type Out = Result<u64, Error>;
 
-    fn handle(&mut self, item: i32, _cx: &Context) -> impl futures::Stream<Item = Self::Out> {
+    fn handle(&self, item: i32, _cx: &Context) -> impl futures::Stream<Item = Self::Out> {
         async_stream::try_stream! {
             yield item as u64;
         }
@@ -17,7 +17,7 @@ pub struct Service2;
 impl Service<i32> for Service2 {
     type Out = Result<u64, Error>;
 
-    fn handle(&mut self, item: i32, _cx: &Context) -> impl futures::Stream<Item = Self::Out> {
+    fn handle(&self, item: i32, _cx: &Context) -> impl futures::Stream<Item = Self::Out> {
         async_stream::try_stream! {
             yield item as u64 + 100;
         }
@@ -29,7 +29,7 @@ pub struct Service3;
 impl Service<i32> for Service3 {
     type Out = Result<u64, Error>;
 
-    fn handle(&mut self, item: i32, _cx: &Context) -> impl futures::Stream<Item = Self::Out> {
+    fn handle(&self, item: i32, _cx: &Context) -> impl futures::Stream<Item = Self::Out> {
         async_stream::try_stream! {
             yield item as u64 * 100;
         }
@@ -38,7 +38,7 @@ impl Service<i32> for Service3 {
 
 #[tokio::main]
 async fn main() {
-    let mut x = flow::<_, Error>() // -
+    let x = flow::<_, Error>() // -
         .flow(
             switch::<i32, Result<u64, Error>, _, _>(|x| x % 4)
                 .case(0, Service1)

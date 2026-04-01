@@ -10,7 +10,7 @@ pub struct SvcI32;
 impl Service<i32> for SvcI32 {
     type Out = Result<u32, Error>;
 
-    fn handle(&mut self, item: i32, _cx: &Context) -> impl Stream<Item = Self::Out> {
+    fn handle(&self, item: i32, _cx: &Context) -> impl Stream<Item = Self::Out> {
         async move { Ok(item as u32) }.into_stream()
     }
 }
@@ -19,14 +19,14 @@ pub struct SvcU64;
 impl Service<u64> for SvcU64 {
     type Out = Result<u32, Error>;
 
-    fn handle(&mut self, item: u64, _cx: &Context) -> impl Stream<Item = Self::Out> {
+    fn handle(&self, item: u64, _cx: &Context) -> impl Stream<Item = Self::Out> {
         async move { Ok(item as u32) }.into_stream()
     }
 }
 
 #[tokio::main]
 async fn main() {
-    let mut service = flow::<_, Error>()
+    let service = flow::<_, Error>()
         .flow(SvcI32)
         .flow_map(async |x| x as u64)
         .flow_filter_map(async |x| (x % 2 == 0).then_some(x))
