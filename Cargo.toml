@@ -35,10 +35,10 @@ members = [
 ]
 
 [workspace.dependencies]
-flowly-core = { version = "*", path = "./crates/flowly-core" }
-flowly-service = { version = "*", path = "./crates/flowly-service" }
-flowly-io = { version = "*", path = "./crates/flowly-io" }
-flowly-spsc = { version = "*", path = "./crates/flowly-spsc" }
+flowly-core = { version = "0", path = "./crates/flowly-core" }
+flowly-service = { version = "0", path = "./crates/flowly-service" }
+flowly-io = { version = "0", path = "./crates/flowly-io" }
+flowly-spsc = { version = "0", path = "./crates/flowly-spsc" }
 
 pin-project-lite = "0.2"
 async-stream = "0.3.6"
