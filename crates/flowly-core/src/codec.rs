@@ -361,13 +361,13 @@ impl<T: Writer> WriterExt for T {}
 pub trait Decoder<T> {
     type Error;
 
-    fn decode<R: Reader>(&mut self, reader: &mut R) -> Result<T, Self::Error>;
+    fn decode<R: Reader>(&self, reader: &mut R) -> Result<T, Self::Error>;
 }
 
 pub trait Encoder<T> {
     type Error;
 
-    fn encode<W: Writer>(&mut self, item: &T, writer: &mut W) -> Result<(), Self::Error>;
+    fn encode<W: Writer>(&self, item: &T, writer: &mut W) -> Result<(), Self::Error>;
     fn size_hint() -> (usize, Option<usize>) {
         (0, None)
     }
@@ -382,7 +382,7 @@ pub struct BytesDecoder;
 impl Decoder<Bytes> for BytesDecoder {
     type Error = crate::Void;
 
-    fn decode<R: Reader>(&mut self, reader: &mut R) -> Result<Bytes, Self::Error> {
+    fn decode<R: Reader>(&self, reader: &mut R) -> Result<Bytes, Self::Error> {
         Ok(reader.read_bytes(reader.remaining()).unwrap())
     }
 }
