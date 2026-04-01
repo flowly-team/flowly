@@ -1,7 +1,7 @@
 use std::{
     marker::PhantomData,
     pin::{Pin, pin},
-    sync::{Arc, OnceLock},
+    sync::Arc,
     task::{Poll, ready},
 };
 
@@ -36,6 +36,7 @@ struct ConcurrentTask<I: Send, S: Service<I>> {
     rx: Arc<Mutex<flowly_spsc::Receiver<Option<S::Out>>>>,
     _handle: tokio::task::JoinHandle<()>,
     m: PhantomData<S>,
+    ctx_tx: std::sync::Mutex<Option<tokio::sync::oneshot::Sender<Context>>>,
 }
 
 impl<I, S> ConcurrentTask<I, S>
@@ -44,11 +45,17 @@ where
     I: Send + 'static,
     S: Service<I> + Send + 'static,
 {
-    fn new(id: u32, mut s: Arc<S>, cx: Context) -> Self {
+    fn new(id: u32, s: Arc<S>) -> Self {
         let (tx, mut in_rx) = tokio::sync::mpsc::channel(1);
         let (mut out_tx, out_rx) = flowly_spsc::channel(1);
+        let (ctx_tx, ctx_rx) = tokio::sync::oneshot::channel();
 
         let _handle = tokio::spawn(async move {
+            let Ok(cx) = ctx_rx.await else {
+                log::error!("no context got");
+                return;
+            };
+
             'recv: while let Some(item) = in_rx.recv().await {
                 let mut s = pin!(s.handle(item, &cx));
 
@@ -69,6 +76,7 @@ where
         Self {
             id,
             tx,
+            ctx_tx: std::sync::Mutex::new(Some(ctx_tx)),
             rx: Arc::new(tokio::sync::Mutex::new(out_rx)),
             _handle,
             m: PhantomData,
@@ -90,6 +98,24 @@ where
         Ok(ConcurrentRx {
             guard: self.rx.clone().lock_owned().await,
         })
+    }
+
+    fn is_ready(&self) -> bool {
+        if let Ok(lock) = self.ctx_tx.try_lock() {
+            lock.is_none()
+        } else {
+            false
+        }
+    }
+
+    fn init(&self, ctx: Context) {
+        if let Ok(Some(sender)) = self.ctx_tx.try_lock().map(|mut x| x.take()) {
+            if sender.send(ctx).is_err() {
+                log::warn!("cannot send context: receiver closed");
+            }
+        } else {
+            log::warn!("cannot init ConcurrentTask twice");
+        }
     }
 }
 
@@ -114,13 +140,16 @@ impl<I: Send + 'static + Clone, S: Service<I> + Clone> Clone for ConcurrentEach<
 impl<I, S> ConcurrentEach<I, S>
 where
     I: Send,
-    S: Service<I> + Send,
+    S: Service<I> + Send + 'static,
     S::Out: Send,
 {
     pub fn new(service: S, limit: usize) -> Self {
+        let service = Arc::new(service);
         Self {
-            service: Arc::new(service),
-            tasks: Vec::with_capacity(limit),
+            tasks: (0..limit as u32)
+                .map(|id| ConcurrentTask::new(id, service.clone()))
+                .collect(),
+            service,
             _m: PhantomData,
             limit,
         }
@@ -138,28 +167,19 @@ where
 
     fn handle(&self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         async move {
-            let index = if self.tasks.len() < self.limit {
-                let index = self.tasks.len();
-                // self.tasks[index]
-                self.tasks.push(ConcurrentTask::new(
-                    index as u32,
-                    self.service.clone(),
-                    cx.clone(),
-                ));
-                index
-            } else {
-                let mut index = fastrand::usize(0..self.tasks.len());
+            let mut index = fastrand::usize(0..self.tasks.len());
 
-                for idx in 0..self.tasks.len() {
-                    let idx = (idx + self.tasks.len()) % self.tasks.len();
-                    if self.tasks[idx].is_available() {
-                        index = idx;
-                        break;
-                    }
+            for idx in 0..self.tasks.len() {
+                let idx = (idx + self.tasks.len()) % self.tasks.len();
+                if self.tasks[idx].is_available() {
+                    index = idx;
+                    break;
                 }
+            }
 
-                index
-            };
+            if !self.tasks[index].is_ready() {
+                self.tasks[index].init(cx.clone());
+            }
 
             Ok(self.tasks[index].send(input).await.unwrap())
         }

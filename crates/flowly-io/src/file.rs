@@ -103,7 +103,7 @@ impl DirReader {
 impl<P: AsRef<Path> + Send> Service<P> for DirReader {
     type Out = Result<WithSource<PathBuf>, Error>;
 
-    fn handle(&mut self, dir: P, cx: &Context) -> impl futures::Stream<Item = Self::Out> + Send {
+    fn handle(&self, dir: P, cx: &Context) -> impl futures::Stream<Item = Self::Out> + Send {
         async_stream::stream! {
             let pattern = format!("{}/{}", dir.as_ref().display().to_string().trim_end_matches('/'), self.pattern);
             let shared = Arc::new(FileSouce { path: pattern });
@@ -146,7 +146,7 @@ impl Default for FileReader {
 impl<P: AsRef<Path> + Send + Sync> Service<P> for FileReader {
     type Out = Result<WithSource<Bytes>, Error>;
 
-    fn handle(&mut self, path: P, cx: &Context) -> impl futures::Stream<Item = Self::Out> + Send {
+    fn handle(&self, path: P, cx: &Context) -> impl futures::Stream<Item = Self::Out> + Send {
         async_stream::stream! {
             let mut buf = vec![0u8; self.chunk_size];
 

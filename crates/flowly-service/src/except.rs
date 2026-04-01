@@ -16,7 +16,7 @@ where
     type Out = Result<R, E2>;
 
     fn handle(
-        &mut self,
+        &self,
         input: I,
         cx: &crate::Context,
     ) -> impl futures::Stream<Item = Self::Out> + Send {

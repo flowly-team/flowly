@@ -376,7 +376,7 @@ pub trait ServiceExt<I: Send>: Service<I> {
     fn flow_map<O1, O2, E1, F, H>(self, f: F) -> Left<Self, map::Map<O2, F>>
     where
         Self: Sized + Service<I, Out = Result<O1, E1>> + Send,
-        F: FnMut(O1) -> H + Send,
+        F: Fn(O1) -> H + Send,
         H: Future<Output = O2> + Send,
         O1: Send,
         O2: Send,
@@ -392,7 +392,7 @@ pub trait ServiceExt<I: Send>: Service<I> {
         O1: Send,
         O2: Send,
         E1: Send,
-        F: FnMut(O1) -> H + Send,
+        F: Fn(O1) -> H + Send,
         H: Future<Output = Option<O2>> + Send,
     {
         Left(self, map::filter_map::<O2, _>(f))

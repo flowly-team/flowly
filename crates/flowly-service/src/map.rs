@@ -19,12 +19,13 @@ pub struct Map<U, F> {
 
 impl<I, U, H, F> Service<I> for Map<U, F>
 where
-    F: FnMut(I) -> H + Send,
+    U: Send + Sync,
+    F: Fn(I) -> H + Send + Sync,
     H: Future<Output = U> + Send,
 {
     type Out = U;
 
-    fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> + Send {
+    fn handle(&self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         (self.map)(input).into_stream()
     }
 }
@@ -44,13 +45,14 @@ pub struct FilterMap<U, F> {
 
 impl<I, U, H, F> Service<I> for FilterMap<U, F>
 where
-    F: FnMut(I) -> H + Send,
+    U: Send + Sync,
+    F: Fn(I) -> H + Send + Sync,
     H: Future<Output = Option<U>> + Send,
     U: Send,
 {
     type Out = U;
 
-    fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> + Send {
+    fn handle(&self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> + Send {
         (self.map)(input).into_stream().filter_map(async |x| x)
     }
 }
@@ -70,12 +72,14 @@ pub struct TryMap<U, E, F> {
 
 impl<I, U, E, H, F> Service<I> for TryMap<U, E, F>
 where
-    F: FnMut(I) -> H + Send,
+    E: Send + Sync,
+    U: Send + Sync,
+    F: Fn(I) -> H + Send + Sync,
     H: Future<Output = Result<U, E>> + Send,
 {
     type Out = Result<U, E>;
 
-    fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> {
+    fn handle(&self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> {
         (self.map)(input).into_stream()
     }
 }
@@ -95,13 +99,14 @@ pub struct TryFilterMap<U, E, F> {
 
 impl<I, U, E, H, F> Service<I> for TryFilterMap<U, E, F>
 where
-    F: FnMut(I) -> H,
+    F: Fn(I) -> H + Send + Sync,
     H: Future<Output = Result<Option<U>, E>> + Send,
-    U: Send,
+    U: Send + Sync,
+    E: Send + Sync,
 {
     type Out = Result<U, E>;
 
-    fn handle(&mut self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> {
+    fn handle(&self, input: I, _cx: &Context) -> impl Stream<Item = Self::Out> {
         (self.map)(input)
             .into_stream()
             .try_filter_map(async |x| Ok(x))
@@ -118,7 +123,8 @@ pub struct MapIfElse<I, F, S1, S2> {
 
 pub fn map_if_else<I, O, F, S1, S2>(f: F, on_true: S1, on_false: S2) -> impl Service<I, Out = O>
 where
-    F: Fn(&I) -> bool,
+    I: Send + Sync,
+    F: Fn(&I) -> bool + Send + Sync,
     S1: Service<I, Out = O>,
     S2: Service<I, Out = O>,
 {
@@ -132,13 +138,14 @@ where
 
 impl<I, O, F, S1, S2> Service<I> for MapIfElse<I, F, S1, S2>
 where
+    I: Send + Sync,
     S1: Service<I, Out = O>,
     S2: Service<I, Out = O>,
-    F: for<'a> Fn(&'a I) -> bool,
+    F: for<'a> Fn(&'a I) -> bool + Send + Sync,
 {
     type Out = O;
 
-    fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> {
+    fn handle(&self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> {
         if (self.f)(&input) {
             self.on_true.handle(input, cx).left_stream()
         } else {

@@ -60,7 +60,7 @@ pub trait SwitchCase<I>: Service<I> {
     fn try_match(&self, item: &I) -> bool;
 }
 
-impl<I: Send, O: Send> SwitchCase<I> for Stub<O> {
+impl<I: Send, O: Send + Sync> SwitchCase<I> for Stub<O> {
     fn try_match(&self, _item: &I) -> bool {
         false
     }
@@ -78,12 +78,13 @@ where
     S: Service<I>,
     C: SwitchCase<I, Out = S::Out>,
     S::Out: Send,
+    I: Send + Sync,
 {
     type Out = S::Out;
 
     #[allow(clippy::collapsible_if)]
-    fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
-        if let Some(case) = &mut self.case {
+    fn handle(&self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
+        if let Some(case) = &self.case {
             if case.try_match(&input) {
                 return case.handle(input, cx).left_stream();
             }
@@ -107,12 +108,15 @@ where
     S: Service<I>,
     C: SwitchCase<I, Out = S::Out>,
     S::Out: Send,
+    I: Send + Sync,
+    F: Send + Sync,
+    A: Send + Sync,
 {
     type Out = S::Out;
 
     #[allow(clippy::collapsible_if)]
-    fn handle(&mut self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
-        if let Some(case) = &mut self.case {
+    fn handle(&self, input: I, cx: &Context) -> impl Stream<Item = Self::Out> + Send {
+        if let Some(case) = &self.case {
             if case.try_match(&input) {
                 return case.handle(input, cx).left_stream();
             }
@@ -130,6 +134,9 @@ where
     F: Fn(&I) -> D,
     S::Out: Send,
     D: std::cmp::PartialEq,
+    F: Send + Sync,
+    A: Send + Sync,
+    I: Send + Sync,
 {
     #[allow(clippy::collapsible_if)]
     fn try_match(&self, item: &I) -> bool {
@@ -147,12 +154,12 @@ where
 
 impl<I, F, D, A, S, C> SwitchMatchCase<I, F, A, S, C>
 where
-    I: Send,
+    I: Send + Sync,
     S: Service<I>,
     S::Out: Send,
-    F: Clone + Fn(&I) -> D,
+    F: Clone + Fn(&I) -> D + Send + Sync,
     C: SwitchCase<I, Out = S::Out>,
-    A: SwitchCaseMatch<D>,
+    A: SwitchCaseMatch<D> + Send + Sync,
     D: std::cmp::PartialEq,
 {
     #[inline]
@@ -200,7 +207,7 @@ impl<I, O, F, D> Switch<I, O, F, D>
 where
     I: Send,
     D: PartialEq,
-    O: Send,
+    O: Send + Sync,
     F: Copy + Fn(&I) -> D,
 {
     #[inline]

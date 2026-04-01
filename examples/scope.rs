@@ -19,14 +19,14 @@ pub struct Svc1;
 impl Service<u64> for Svc1 {
     type Out = Result<i32, Error>;
 
-    fn handle(&mut self, item: u64, _cx: &Context) -> impl Stream<Item = Self::Out> {
+    fn handle(&self, item: u64, _cx: &Context) -> impl Stream<Item = Self::Out> {
         async move { Ok((item % 3) as i32 - 1) }.into_stream()
     }
 }
 
 #[tokio::main]
 async fn main() {
-    let mut service = flow::<Msg>().flow_scope(|x: &Msg| Ok::<_, Error>(x.val), Svc1);
+    let service = flow::<Msg>().flow_scope(|x: &Msg| Ok::<_, Error>(x.val), Svc1);
     let cx = Context::new();
     let mut stream = pin!(service.handle(Msg { x: 0, val: 12 }, &cx));
 

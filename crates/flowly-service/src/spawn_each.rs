@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, pin::pin};
+use std::{marker::PhantomData, pin::pin, sync::Arc};
 
 use futures::StreamExt;
 use tokio::sync::mpsc;
@@ -8,7 +8,7 @@ use crate::Service;
 
 #[derive(Clone)]
 pub struct SpawnEach<M, S> {
-    service: S,
+    service: Arc<S>,
     buffer: usize,
     _m: PhantomData<M>,
 }
@@ -16,14 +16,14 @@ pub struct SpawnEach<M, S> {
 impl<M, S> SpawnEach<M, S>
 where
     M: Send,
-    S: Service<M> + Send + Clone + 'static,
+    S: Service<M> + Send + 'static,
 {
     pub fn new(service: S, buffer: usize) -> Self
     where
         S::Out: Send,
     {
         Self {
-            service,
+            service: Arc::new(service),
             buffer,
             _m: PhantomData,
         }
@@ -32,19 +32,19 @@ where
 
 impl<M, R, E, S> Service<M> for SpawnEach<M, S>
 where
-    M: Send + 'static,
+    M: Send + Sync + 'static,
     R: Send + 'static,
     E: Send + 'static,
-    S: Clone + Service<M, Out = Result<R, E>> + Send + 'static,
+    S: Service<M, Out = Result<R, E>> + 'static,
 {
     type Out = Result<ReceiverStream<Result<R, E>>, E>;
 
     fn handle(
-        &mut self,
+        &self,
         input: M,
         cx: &crate::Context,
     ) -> impl futures::Stream<Item = Self::Out> + Send {
-        let mut service = self.service.clone();
+        let service = self.service.clone();
         let (tx, rx) = mpsc::channel(self.buffer);
         let cx = cx.clone();
         tokio::spawn(async move {

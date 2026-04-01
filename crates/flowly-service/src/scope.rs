@@ -23,16 +23,16 @@ pub struct Scope<I, M, E, S, F> {
 impl<I, M, E1, O, E, S, F> Service<I> for Scope<I, M, E1, S, F>
 where
     S: Service<M, Out = Result<O, E>> + Send,
-    F: Send + Fn(&I) -> Result<M, E1>,
-    M: Send,
+    F: Send + Fn(&I) -> Result<M, E1> + Sync,
+    M: Send + Sync,
     O: Send,
-    I: Send,
-    E: Send,
-    E1: Send,
+    I: Send + Sync,
+    E: Send + Sync,
+    E1: Send + Sync,
 {
     type Out = Result<(I, Result<Vec<O>, Either<E, E1>>), E1>;
 
-    fn handle(&mut self, msg: I, cx: &crate::Context) -> impl Stream<Item = Self::Out> + Send {
+    fn handle(&self, msg: I, cx: &crate::Context) -> impl Stream<Item = Self::Out> + Send {
         async move {
             match (self.f)(&msg) {
                 Ok(m) => Ok((
